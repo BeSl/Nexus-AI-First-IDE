@@ -92,11 +92,14 @@ BuildOrchestrator          ← shadow build in ~/.nexus/shadow-build/
 | `src/core/context/ContextEngine` | ✅ Keyword ranking + token budget | 13/13 |
 | `src/core/builder/BuildOrchestrator` | ✅ Shadow build pipeline | 16/16 |
 | `src/core/builder/ErrorAnalyzer` | ✅ tsc/esbuild parser + auto-fix | — |
+| `src/core/llm/AnthropicGateway` | ✅ Claude API + MCP | 9/9 |
+| `src/core/context/VectorIndex` | ✅ TF-IDF vector index | 10/10 |
+| `src/core/vfs/InMemoryVFS` | ✅ Staged writes + confirm | 17/17 |
 | `agents/architect` | 🔲 Contracts only | — |
 | LSP Layer | 🔲 Planned | — |
 | ArchitectureGraph (Webview) | 🔲 Planned | — |
 
-**Total: 58/58 tests passing**
+**Total: 94/94 tests passing**
 
 ## Tech Stack
 
