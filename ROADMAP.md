@@ -57,6 +57,14 @@
 
 ---
 
+## 🤖 Агент-персоны (реализовано)
+
+- [x] **CoderAgent** — реализует интерфейсы от Architect, retry-loop с BuildFeedback (9/9 тестов)
+- [x] **ReviewerAgent** — статический анализ (NEXUS-001…008) + LLM review (9/9 тестов)
+- [x] **TesterAgent** — генерация Vitest тестов для каждого артефакта (9/9 тестов)
+
+---
+
 ## 🔌 Связка компонентов (Critical — реализовано)
 
 - [x] **LLM Tool Binding** — `AgentToolkit`: ContextEngine + VectorIndex + SkeletonProvider как MCP tools (11/11 тестов)
@@ -142,7 +150,10 @@
 | `src/core/vfs/VFSCommitter`        | 9/9   | ✅ реализован |
 | `src/core/builder/BuildFeedback`   | 11/11 | ✅ реализован |
 | `agents/architect/ArchitectAgent`  | 8/8   | ✅ реализован |
-| **Итого**                          | **133/133** | ✅        |
+| `agents/coder/CoderAgent`          | 9/9   | ✅ реализован |
+| `agents/reviewer/ReviewerAgent`    | 9/9   | ✅ реализован |
+| `agents/tester/TesterAgent`        | 9/9   | ✅ реализован |
+| **Итого**                          | **160/160** | ✅        |
 
 План развития: От инфраструктуры к Интеллекту
 1. Реализация конкретных Агентов (Personas)

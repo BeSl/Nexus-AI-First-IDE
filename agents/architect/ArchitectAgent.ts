@@ -59,8 +59,8 @@ export class ArchitectAgent implements IArchitectAgent {
       agentId: AGENT_ID,
       intent: refined,
       artifacts: refined.modules.map((m) => ({
-        kind: 'file' as const,
-        uri: m.path,
+        type: 'file' as const,
+        path: m.path,
         content: this.#renderInterfaces(m.name, m.interfaces),
       })),
     };

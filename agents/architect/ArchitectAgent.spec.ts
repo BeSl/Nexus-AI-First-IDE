@@ -112,7 +112,7 @@ describe('ArchitectAgent.designModules', () => {
     const agent = new ArchitectAgent(gw, makeToolkit());
     const intent = await agent.parseIntent('Add auth');
     const output = await agent.designModules(intent);
-    expect(output.artifacts[0]?.uri).toBe('src/auth/AuthService.ts');
+    expect(output.artifacts[0]?.path).toBe('src/auth/AuthService.ts');
   });
 
   it('artifact content contains interface definition', async () => {
