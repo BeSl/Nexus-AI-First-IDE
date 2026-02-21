@@ -57,6 +57,15 @@
 
 ---
 
+## 🔌 Связка компонентов (Critical — реализовано)
+
+- [x] **LLM Tool Binding** — `AgentToolkit`: ContextEngine + VectorIndex + SkeletonProvider как MCP tools (11/11 тестов)
+- [x] **VFS Sync** — `VFSCommitter`: git commit после `InMemoryVFS.confirm()` (9/9 тестов)
+- [x] **Agent Prompt Templates** — `ArchitectAgent` + системный промпт + `prompts.ts` (8/8 тестов)
+- [x] **Shadow Build Feedback Loop** — `BuildFeedback`: форматирование ошибок BuildResult для Coder агента (11/11 тестов)
+
+---
+
 ## 🛡 Фаза 3: AgentTS и Enterprise-контроль (Beta)
 
 **Цель:** Внедрить строгие правила разработки, которые сделают код поддерживаемым и безопасным.
@@ -129,4 +138,47 @@
 | `src/core/vfs/InMemoryVFS`         | 17/17 | ✅ реализован |
 | `src/core/builder/BuildOrchestrator` | 16/16 | ✅ реализован |
 | `src/core/llm/AnthropicGateway`    | 9/9   | ✅ реализован |
-| **Итого**                          | **94/94** | ✅           |
+| `src/core/llm/AgentToolkit`        | 11/11 | ✅ реализован |
+| `src/core/vfs/VFSCommitter`        | 9/9   | ✅ реализован |
+| `src/core/builder/BuildFeedback`   | 11/11 | ✅ реализован |
+| `agents/architect/ArchitectAgent`  | 8/8   | ✅ реализован |
+| **Итого**                          | **133/133** | ✅        |
+
+План развития: От инфраструктуры к Интеллекту
+1. Реализация конкретных Агентов (Personas)
+Сейчас у тебя есть машина состояний, но «актеры» еще не знают своих ролей.
+
+Architect Agent: Должен уметь анализировать SkeletonProvider и выдавать структуру новых файлов. Задача: Реализовать промпт-инженерную логику для генерации архитектурных планов в формате JSON.
+
+Coder Agent: Должен работать в связке с InMemoryVFS. Задача: Реализовать итеративное исправление кода на основе ошибок из BuildOrchestrator.
+
+Reviewer & Tester: Самое важное для Enterprise. Задача: Агент-ревьюер должен сверять код с файлом .nexus-rules (статический анализ через LLM).
+
+2. UI: Визуализация Мышления (ArchitectureGraph)
+Без визуализации пользователю будет сложно доверять агенту.
+
+Webview интеграция: Создать панель в Code-OSS (React + React Flow).
+
+Live Stream: Визуализация переходов XState-машины в реальном времени. Пользователь должен видеть: «Ага, сейчас агент в состоянии reviewer, он проверяет типы».
+
+Impact Analysis: Подсветка узлов графа, которые затронет текущая задача.
+
+3. LSP Layer: Глубокое понимание кода
+Это то, что отличает IDE от простого чата.
+
+Cross-file Go-to-Definition: Интеграция с TypeScript LSP, чтобы агент мог «прыгать» по определениям, как это делает разработчик.
+
+Type Coverage Reporter: Инструмент, который говорит агенту: «Ты написал код, но уровень покрытия типами упал, исправь».
+
+4. Очистка и Патчинг Code-OSS (Enterprise Hardening)
+Чтобы предлагать это Google или другим компаниям, IDE должна быть "чистой".
+
+Telemetry Nuker: Автоматизировать применение патчей 0001–0099 для удаления всех vortex.data.microsoft.com и прочих эндпоинтов.
+
+Custom Branding: Замена иконок, названий и стартового экрана на Nexus AI.
+
+Задача,Описание,Приоритет
+LLM Tool Binding,"Связать AnthropicGateway с методами SkeletonProvider и VectorIndex, чтобы Claude мог сам вызывать поиск.",🔥 Critical
+VFS Sync,Реализовать механизм Apply Changes (перенос из InMemoryVFS в реальную файловую систему с созданием Git-коммита).,🔥 Critical
+Agent Prompt Templates,"Написать системные промпты для каждой роли (Architect, Coder и т.д.) на основе .nexus-rules.",🟡 High
+Shadow Build Feedback Loop,Настроить автоматическую передачу ошибок компиляции (из stdout) обратно в контекст Coder-агента.,🟡 High
