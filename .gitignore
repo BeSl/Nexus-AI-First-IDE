@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.vscode-test/
+*.vsix
+
+# vscode source — cloned separately, not committed
+vscode-src/
+
+# Build artifacts
+out/
+*.js.map
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE local settings (keep .vscode/extensions.json and .vscode/launch.json)
+.vscode/settings.json

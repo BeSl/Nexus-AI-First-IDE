@@ -1,0 +1,38 @@
+{
+  "name": "nexus-agent-ide",
+  "version": "0.1.0",
+  "description": "AI-First IDE — Nexus Agent IDE, built on Code-OSS/VSCodium",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "node build-scripts/dev.mjs",
+    "build": "node build-scripts/build.mjs",
+    "build:agent-ts": "tsc -p agent-ts/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --ext .ts,.tsx",
+    "patch:apply": "node build-scripts/apply-patches.mjs",
+    "patch:create": "node build-scripts/create-patch.mjs",
+    "vscode:clone": "node build-scripts/clone-vscode.mjs"
+  },
+  "workspaces": [
+    "agent-ts",
+    "agents/*",
+    "core"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0"
+  },
+  "dependencies": {
+    "xstate": "^5.14.0",
+    "zod": "^3.23.0"
+  }
+}

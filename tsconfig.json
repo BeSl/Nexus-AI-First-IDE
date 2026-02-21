@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@nexus/core/*": ["./core/*"],
+      "@nexus/agents/*": ["./agents/*"],
+      "@nexus/agent-ts/*": ["./agent-ts/*"],
+      "@nexus/ui/*": ["./ui/*"]
+    }
+  },
+  "include": ["src/**/*", "core/**/*", "agents/**/*", "agent-ts/**/*"],
+  "exclude": ["node_modules", "dist", "vscode-src"]
+}
