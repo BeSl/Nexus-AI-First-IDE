@@ -19,6 +19,7 @@ import { runTester } from '../agents/runTester.js';
 import { WorkspaceCommitter, nodeWorkspaceFs } from './core/vfs/WorkspaceCommitter.js';
 import { NexusGraphPanel } from '../ui/NexusGraphPanel.js';
 import { NexusApprovalPanel } from '../ui/NexusApprovalPanel.js';
+import { NexusVfsProvider } from '../ui/NexusVfsProvider.js';
 import type { AgentProgress } from './ui/webview.types.js';
 import type { AgentRole, Artifact, TaskStatus } from '../core/orchestrator.types.js';
 
@@ -50,12 +51,18 @@ function toTaskStatus(state: string): TaskStatus {
 export class NexusLoop {
   readonly #panel: NexusGraphPanel;
   readonly #extensionUri: vscode.Uri;
+  readonly #vfsProvider: NexusVfsProvider | undefined;
   #actor: OrchestratorActor | null = null;
   #stopped = false;
 
-  constructor(panel: NexusGraphPanel, extensionUri: vscode.Uri) {
-    this.#panel = panel;
+  constructor(
+    panel: NexusGraphPanel,
+    extensionUri: vscode.Uri,
+    vfsProvider?: NexusVfsProvider,
+  ) {
+    this.#panel       = panel;
     this.#extensionUri = extensionUri;
+    this.#vfsProvider  = vfsProvider;
   }
 
   start(intent: string): void {
@@ -91,6 +98,11 @@ export class NexusLoop {
           if (this.#stopped) return;
           this.#actor?.send(approved ? { type: 'USER_APPROVED' } : { type: 'USER_REJECTED' });
         });
+      }
+
+      // Refresh VFS sidebar tree with latest artifacts
+      if (ctx.artifacts.length > 0) {
+        this.#vfsProvider?.refresh(ctx.taskId, ctx.artifacts);
       }
 
       if (stateName === 'done') {

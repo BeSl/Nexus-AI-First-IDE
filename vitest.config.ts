@@ -7,6 +7,7 @@ export default defineConfig({
       'agents/**/*.spec.ts',
       'agent-ts/**/*.spec.ts',
       'src/**/*.spec.ts',
+      'ui/**/*.spec.ts',
     ],
     exclude: [
       'vscode-src/**',

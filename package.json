@@ -12,9 +12,43 @@
   "activationEvents": [],
   "contributes": {
     "commands": [
-      { "command": "nexus.showGraph", "title": "Nexus: Show Architecture Graph" },
-      { "command": "nexus.run",       "title": "Nexus: Run Agent Loop" }
-    ]
+      { "command": "nexus.showGraph",      "title": "Nexus: Show Architecture Graph" },
+      { "command": "nexus.run",            "title": "Nexus: Run Agent Loop" },
+      { "command": "nexus.vfs.approveAll", "title": "Nexus: Approve All Staged Files" },
+      { "command": "nexus.vfs.discardAll", "title": "Nexus: Discard All Staged Files" }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "nexusExplorer",
+          "title": "Nexus Agent",
+          "icon": "$(robot)"
+        }
+      ]
+    },
+    "views": {
+      "nexusExplorer": [
+        {
+          "id": "nexusVfs",
+          "name": "Staged Files",
+          "when": "true"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "nexus.vfs.approveAll",
+          "when": "view == nexusVfs",
+          "group": "navigation"
+        },
+        {
+          "command": "nexus.vfs.discardAll",
+          "when": "view == nexusVfs",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "dev": "node build-scripts/dev.mjs",
