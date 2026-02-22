@@ -7,15 +7,17 @@
  * Supported providers:
  *   anthropic  — Claude via Anthropic API (default)
  *   ollama     — Local Ollama server (no external calls)
+ *   gemini     — Google Gemini REST API
  *
  * @security API keys come from env variables only. Never pass from user input.
  */
 
 import { AnthropicGateway } from './AnthropicGateway.js';
 import { OllamaGateway } from './OllamaGateway.js';
+import { GeminiGateway } from './GeminiGateway.js';
 import type { ILLMGateway } from './LLMGateway.types.js';
 
-export type LlmProvider = 'anthropic' | 'ollama';
+export type LlmProvider = 'anthropic' | 'ollama' | 'gemini';
 
 export interface GatewayOptions {
   /** Override provider (default: NEXUS_LLM_PROVIDER env, fallback 'anthropic') */
@@ -24,6 +26,8 @@ export interface GatewayOptions {
   readonly anthropicApiKey?: string;
   /** Ollama-specific base URL override (default: OLLAMA_BASE_URL env) */
   readonly ollamaBaseUrl?: string;
+  /** Gemini-specific API key override (default: GEMINI_API_KEY env) */
+  readonly geminiApiKey?: string;
   /** Model name override */
   readonly model?: string;
 }
@@ -47,6 +51,12 @@ export function createGateway(opts: GatewayOptions = {}): ILLMGateway {
     case 'ollama':
       return new OllamaGateway({
         ...(opts.ollamaBaseUrl ? { baseUrl: opts.ollamaBaseUrl } : {}),
+        ...(opts.model ? { model: opts.model } : {}),
+      });
+
+    case 'gemini':
+      return new GeminiGateway({
+        ...(opts.geminiApiKey ? { apiKey: opts.geminiApiKey } : {}),
         ...(opts.model ? { model: opts.model } : {}),
       });
 

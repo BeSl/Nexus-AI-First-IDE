@@ -7,6 +7,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { createGateway } from './GatewayFactory.js';
 import { AnthropicGateway } from './AnthropicGateway.js';
 import { OllamaGateway } from './OllamaGateway.js';
+import { GeminiGateway } from './GeminiGateway.js';
 
 afterEach(() => {
   delete process.env['NEXUS_LLM_PROVIDER'];
@@ -16,18 +17,19 @@ afterEach(() => {
 
 describe('createGateway — opts.provider', () => {
   it('returns AnthropicGateway for provider=anthropic', () => {
-    const gw = createGateway({ provider: 'anthropic' });
-    expect(gw).toBeInstanceOf(AnthropicGateway);
+    expect(createGateway({ provider: 'anthropic' })).toBeInstanceOf(AnthropicGateway);
   });
 
   it('returns OllamaGateway for provider=ollama', () => {
-    const gw = createGateway({ provider: 'ollama' });
-    expect(gw).toBeInstanceOf(OllamaGateway);
+    expect(createGateway({ provider: 'ollama' })).toBeInstanceOf(OllamaGateway);
+  });
+
+  it('returns GeminiGateway for provider=gemini', () => {
+    expect(createGateway({ provider: 'gemini' })).toBeInstanceOf(GeminiGateway);
   });
 
   it('defaults to AnthropicGateway when no provider specified', () => {
-    const gw = createGateway();
-    expect(gw).toBeInstanceOf(AnthropicGateway);
+    expect(createGateway()).toBeInstanceOf(AnthropicGateway);
   });
 });
 
@@ -36,44 +38,44 @@ describe('createGateway — opts.provider', () => {
 describe('createGateway — NEXUS_LLM_PROVIDER env', () => {
   it('reads anthropic from env', () => {
     process.env['NEXUS_LLM_PROVIDER'] = 'anthropic';
-    const gw = createGateway();
-    expect(gw).toBeInstanceOf(AnthropicGateway);
+    expect(createGateway()).toBeInstanceOf(AnthropicGateway);
   });
 
   it('reads ollama from env', () => {
     process.env['NEXUS_LLM_PROVIDER'] = 'ollama';
-    const gw = createGateway();
-    expect(gw).toBeInstanceOf(OllamaGateway);
+    expect(createGateway()).toBeInstanceOf(OllamaGateway);
+  });
+
+  it('reads gemini from env', () => {
+    process.env['NEXUS_LLM_PROVIDER'] = 'gemini';
+    expect(createGateway()).toBeInstanceOf(GeminiGateway);
   });
 
   it('opts.provider overrides env', () => {
     process.env['NEXUS_LLM_PROVIDER'] = 'ollama';
-    const gw = createGateway({ provider: 'anthropic' });
-    expect(gw).toBeInstanceOf(AnthropicGateway);
+    expect(createGateway({ provider: 'anthropic' })).toBeInstanceOf(AnthropicGateway);
   });
 });
 
-// ── options forwarding ────────────────────────────────────────────────────────
+// ── ILLMGateway interface compliance ─────────────────────────────────────────
 
 describe('createGateway — gateway implements ILLMGateway', () => {
-  it('anthropic gateway has registerTools method', () => {
-    const gw = createGateway({ provider: 'anthropic' });
-    expect(typeof gw.registerTools).toBe('function');
+  it('all providers have registerTools method', () => {
+    expect(typeof createGateway({ provider: 'anthropic' }).registerTools).toBe('function');
+    expect(typeof createGateway({ provider: 'ollama' }).registerTools).toBe('function');
+    expect(typeof createGateway({ provider: 'gemini' }).registerTools).toBe('function');
   });
 
-  it('ollama gateway has registerTools method', () => {
-    const gw = createGateway({ provider: 'ollama' });
-    expect(typeof gw.registerTools).toBe('function');
-  });
-
-  it('both gateways have complete method', () => {
+  it('all providers have complete method', () => {
     expect(typeof createGateway({ provider: 'anthropic' }).complete).toBe('function');
     expect(typeof createGateway({ provider: 'ollama' }).complete).toBe('function');
+    expect(typeof createGateway({ provider: 'gemini' }).complete).toBe('function');
   });
 
-  it('both gateways have stream method', () => {
+  it('all providers have stream method', () => {
     expect(typeof createGateway({ provider: 'anthropic' }).stream).toBe('function');
     expect(typeof createGateway({ provider: 'ollama' }).stream).toBe('function');
+    expect(typeof createGateway({ provider: 'gemini' }).stream).toBe('function');
   });
 });
 
@@ -81,6 +83,6 @@ describe('createGateway — gateway implements ILLMGateway', () => {
 
 describe('createGateway — unknown provider', () => {
   it('throws for unknown provider string', () => {
-    expect(() => createGateway({ provider: 'gemini' as never })).toThrow('Unknown LLM provider');
+    expect(() => createGateway({ provider: 'bedrock' as never })).toThrow('Unknown LLM provider');
   });
 });

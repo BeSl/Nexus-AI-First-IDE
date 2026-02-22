@@ -1,7 +1,15 @@
 {
   "name": "nexus-agent-ide",
+  "displayName": "Nexus Agent IDE",
   "version": "0.1.0",
-  "description": "AI-First IDE — Nexus Agent IDE, built on Code-OSS/VSCodium",
+  "description": "AI-First IDE — agentic TypeScript development powered by Claude & local LLMs",
+  "publisher": "nexus-ai",
+  "categories": ["Programming Languages", "Other"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nexus-ai/nexus-agent-ide"
+  },
+  "license": "MIT",
   "private": true,
   "main": "./dist/src/extension.js",
   "engines": {
@@ -59,6 +67,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts,.tsx",
+    "package": "vsce package --no-dependencies",
     "patch:apply": "node build-scripts/apply-patches.mjs",
     "patch:create": "node build-scripts/create-patch.mjs",
     "vscode:clone": "node build-scripts/clone-vscode.mjs"
@@ -69,6 +78,7 @@
     "core"
   ],
   "devDependencies": {
+    "@vscode/vsce": "^3.2.0",
     "@types/node": "^20.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

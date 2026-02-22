@@ -20,8 +20,11 @@ import { WorkspaceCommitter, nodeWorkspaceFs } from './core/vfs/WorkspaceCommitt
 import { NexusGraphPanel } from '../ui/NexusGraphPanel.js';
 import { NexusApprovalPanel } from '../ui/NexusApprovalPanel.js';
 import { NexusVfsProvider } from '../ui/NexusVfsProvider.js';
+import { TelemetryService } from './core/telemetry/TelemetryService.js';
 import type { AgentProgress } from './ui/webview.types.js';
 import type { AgentRole, Artifact, TaskStatus } from '../core/orchestrator.types.js';
+
+const AGENT_STATES = new Set<string>(['architect', 'coder', 'reviewer', 'tester']);
 
 type OrchestratorActor = Actor<typeof orchestratorMachine>;
 
@@ -52,8 +55,11 @@ export class NexusLoop {
   readonly #panel: NexusGraphPanel;
   readonly #extensionUri: vscode.Uri;
   readonly #vfsProvider: NexusVfsProvider | undefined;
+  readonly #telemetry = new TelemetryService();
   #actor: OrchestratorActor | null = null;
   #stopped = false;
+  #prevState = '';
+  #prevStateAt = 0;
 
   constructor(
     panel: NexusGraphPanel,
@@ -77,6 +83,21 @@ export class NexusLoop {
       if (this.#stopped) return;
       const stateName = typeof snapshot.value === 'string' ? snapshot.value : 'unknown';
       const ctx = snapshot.context;
+
+      // Track per-agent timing when leaving an agent state
+      if (this.#prevState && this.#prevState !== stateName && AGENT_STATES.has(this.#prevState)) {
+        this.#telemetry.record({
+          agentRole:    this.#prevState as AgentRole,
+          model:        'nexus-agent',
+          inputTokens:  0,
+          outputTokens: 0,
+          durationMs:   Date.now() - this.#prevStateAt,
+          success:      stateName !== 'failed',
+          timestamp:    this.#prevStateAt,
+        });
+      }
+      this.#prevState   = stateName;
+      this.#prevStateAt = Date.now();
 
       // Forward to React Flow graph via OrchestratorBridge
       this.#panel.bridge.onStateChange(
@@ -145,8 +166,12 @@ export class NexusLoop {
     const committer = new WorkspaceCommitter(nodeWorkspaceFs);
     const result = await committer.commit(ctx.taskId, selected, workspaceRoot);
 
+    const summary = this.#telemetry.getSummary();
+    const costNote = summary.estimatedCostUsd > 0
+      ? ` | cost ~$${summary.estimatedCostUsd.toFixed(4)}`
+      : '';
     void vscode.window.showInformationMessage(
-      `Nexus: wrote ${result.written.length} file(s) to workspace.`,
+      `Nexus: wrote ${result.written.length} file(s). Cycles: ${summary.cycles}${costNote}`,
     );
   }
 

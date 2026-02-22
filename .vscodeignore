@@ -1,0 +1,39 @@
+# ── Nexus Agent IDE — .vscodeignore ──────────────────────────────────────────
+# Controls what is included in the packaged .vsix extension.
+# Only dist/ + package.json + README.md are required at runtime.
+
+# ── Source (not needed in packaged extension) ─────────────────────────────────
+src/**
+core/**
+agents/**
+agent-ts/**
+ui/**
+vscode-src/**
+webview-src/**
+patches/**
+build-scripts/**
+
+# ── Test & Config files ───────────────────────────────────────────────────────
+**/*.spec.ts
+**/*.test.ts
+**/*.spec.js
+vitest.config.ts
+tsconfig*.json
+.eslintrc*
+.prettierrc*
+
+# ── Dev/CI infrastructure ─────────────────────────────────────────────────────
+.github/**
+.git/**
+*.vsix
+
+# ── Docs & misc ───────────────────────────────────────────────────────────────
+ROADMAP.md
+NEXUS_ROADMAP.md
+memory/
+*.log
+
+# ── Keep these ────────────────────────────────────────────────────────────────
+!dist/**
+!package.json
+!README.md

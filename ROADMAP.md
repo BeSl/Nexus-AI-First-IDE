@@ -217,3 +217,72 @@ LLM Tool Binding,"Связать AnthropicGateway с методами SkeletonPr
 VFS Sync,Реализовать механизм Apply Changes (перенос из InMemoryVFS в реальную файловую систему с созданием Git-коммита).,🔥 Critical
 Agent Prompt Templates,"Написать системные промпты для каждой роли (Architect, Coder и т.д.) на основе .nexus-rules.",🟡 High
 Shadow Build Feedback Loop,Настроить автоматическую передачу ошибок компиляции (из stdout) обратно в контекст Coder-агента.,🟡 High
+
+Фаза: Непробиваемая Инфраструктура (CI/CD & Code Quality)
+Цель: Сделать репозиторий готовым к Open Source контрибьюциям и показать Enterprise-уровень (зеленые бейджики в GitHub).
+
+Промпт для Claude:
+
+Context: I am preparing the Nexus-AI-First-IDE project for a public GitHub release. The goal is to make it Enterprise-ready (Google/BigTech standards). We already have 94 passing tests locally.
+
+Task:
+
+Create a GitHub Actions workflow file (.github/workflows/test.yml) that runs npm test on every push and pull request to the main branch. Ensure it uses Node.js 20.
+
+Set up Husky and lint-staged in the repository.
+
+Create a basic .eslintrc.js and .prettierrc configured for a TypeScript monorepo (workspaces: core, agents, agent-ts).
+
+Add a pre-commit hook that runs the linter and formats the staged files before allowing a commit.
+
+Constraint: Do not break existing tests. Provide the exact terminal commands I need to run to install these devDependencies and initialize Husky.
+
+Фаза: Интеграция Webview UI (Architect Approval Panel)
+Цель: Оживить машину состояний XState. Когда система переходит в состояние awaitingApproval, в VS Code должна открываться Material Design панель с планом от ИИ-Архитектора.
+
+Промпт для Claude:
+
+Context: In our Nexus-AI-First-IDE, the XState orchestrator (orchestrator.machine.ts) transitions to the awaitingApproval state after the Architect agent generates a JSON plan of artifacts.
+
+Task:
+
+Implement the NexusApprovalPanel class (using VS Code Webview API) that renders an array of Artifact objects (URI, type: 'new'|'update', reason, content snippet).
+
+The UI must follow VS Code's native look and feel (using CSS variables like var(--vscode-button-background)).
+
+Add two buttons to the Webview: "Approve Plan" and "Reject Plan".
+
+Wire the Webview messages back to the XState machine:
+
+"Approve" should trigger the USER_APPROVED event (moving to the coder state).
+
+"Reject" should trigger the USER_REJECTED event.
+
+Update orchestrator.machine.ts to call this Webview panel as an entry action when entering the awaitingApproval state.
+
+Constraint: Ensure the Webview correctly handles state serialization and doesn't memory-leak if closed and reopened.
+
+Фаза : Coder Agent и Shadow Build Integration
+Цель: Замкнуть цикл. После апрува Архитектора, Кодер должен написать реальный код в Виртуальную Файловую Систему (VFS) и запустить фоновую проверку.
+
+Промпт для Claude:
+
+Context: The user has approved the Architect's plan in Nexus-AI-First-IDE. The XState machine is now in the coder state. We have an array of approved Artifact objects (containing signatures/types).
+
+Task:
+
+Implement the runCoder.ts XState actor (using fromPromise).
+
+The Coder agent should receive the approved artifacts and the user's original intent.
+
+Write a system prompt for the Coder: "You are the Nexus Coder. Your job is to implement the function bodies for the provided artifacts. Return a JSON array of files with their full implementation."
+
+Call the LLM (e.g., AnthropicGateway) to generate the code.
+
+Parse the LLM response and write the generated files into our InMemoryVFS (Virtual File System).
+
+Trigger the ShadowBuild process on the VFS to verify there are no TypeScript errors.
+
+If the build passes, return success to the orchestrator. If it fails, return the error log so the XState machine can loop back for self-healing.
+
+Constraint: Do NOT write to the physical disk yet. All changes must happen inside InMemoryVFS until the final Done state.
