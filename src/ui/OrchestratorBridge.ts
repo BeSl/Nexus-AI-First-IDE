@@ -37,6 +37,7 @@ export interface IOrchestratorSnapshot {
     readonly activeRole?: AgentRole;
     readonly currentTaskId?: string;
     readonly status?: TaskStatus;
+    readonly intent?: string;
   };
 }
 
@@ -71,6 +72,7 @@ export class OrchestratorBridge {
         taskId: snapshot.context.currentTaskId ?? null,
         status: snapshot.context.status ?? 'pending',
         progress,
+        ...(snapshot.context.intent ? { intent: snapshot.context.intent } : {}),
       } satisfies NexusState,
     };
     this.#webview.postMessage(msg);

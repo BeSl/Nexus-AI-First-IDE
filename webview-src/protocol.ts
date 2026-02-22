@@ -23,6 +23,7 @@ export interface NexusState {
   readonly taskId: string | null;
   readonly status: string;
   readonly progress: readonly AgentProgress[];
+  readonly intent?: string;
 }
 
 export interface OrchestratorStateMessage {

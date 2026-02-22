@@ -59,6 +59,7 @@ export class NexusLoop {
   readonly #telemetry = new TelemetryService();
   #actor: OrchestratorActor | null = null;
   #stopped = false;
+  #currentIntent = '';
   #prevState = '';
   #prevStateAt = 0;
 
@@ -73,6 +74,7 @@ export class NexusLoop {
   }
 
   start(intent: string): void {
+    this.#currentIntent = intent;
     const taskId = `nexus-${Date.now()}`;
     const opts = readGatewayOptions();
     const machine = orchestratorMachine.provide({
@@ -115,6 +117,7 @@ export class NexusLoop {
             ...(ctx.currentRole != null ? { activeRole: ctx.currentRole } : {}),
             currentTaskId: ctx.taskId,
             status: toTaskStatus(stateName),
+            intent: this.#currentIntent,
           },
         },
         buildProgress(ctx, stateName),

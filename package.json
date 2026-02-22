@@ -1,7 +1,7 @@
 {
   "name": "nexus-agent-ide",
   "displayName": "Nexus Agent IDE",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "AI-First IDE — agentic TypeScript development powered by Claude & local LLMs",
   "publisher": "nexus-ai",
   "categories": [
