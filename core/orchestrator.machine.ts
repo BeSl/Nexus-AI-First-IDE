@@ -2,16 +2,18 @@
  * Orchestrator — XState State Machine
  *
  * Defines the Nexus Loop lifecycle:
- *   intent → architect → coder → reviewer → tester → done
+ *   intent → architect → coder → shadowBuild → reviewer → tester → done
  *
- * Each state corresponds to an agent persona.
- * Failure at any step routes to `failed` with full error context.
+ * Shadow build validates Coder output in-process before Reviewer sees it.
+ * On failure the Coder receives buildFeedback and retries up to MAX_RETRIES.
  */
 
 import { setup, assign, fromPromise } from 'xstate';
 import type { AgentRole, AgentResult, Artifact } from './orchestrator.types.js';
 
-// ── Machine Context ──────────────────────────────────────────────────────────
+const MAX_RETRIES = 3;
+
+// ── Machine Context ───────────────────────────────────────────────────────────
 
 export interface OrchestratorContext {
   readonly taskId: string;
@@ -20,6 +22,8 @@ export interface OrchestratorContext {
   readonly currentRole: AgentRole | null;
   readonly results: readonly AgentResult[];
   readonly error: string | null;
+  readonly buildFeedback: string | null;
+  readonly retryCount: number;
 }
 
 // ── Events ───────────────────────────────────────────────────────────────────
@@ -58,6 +62,9 @@ export const orchestratorMachine = setup({
     runCoder: fromPromise<AgentResult, AgentActorInput>(async () => {
       throw new Error('runCoder actor must be provided at machine creation');
     }),
+    runShadowBuild: fromPromise<AgentResult, AgentActorInput>(async () => {
+      throw new Error('runShadowBuild actor must be provided at machine creation');
+    }),
     runReviewer: fromPromise<AgentResult, AgentActorInput>(async () => {
       throw new Error('runReviewer actor must be provided at machine creation');
     }),
@@ -82,6 +89,10 @@ export const orchestratorMachine = setup({
         event.type === 'AGENT_FAILED' ? event.error : 'Unknown error',
     }),
   },
+
+  guards: {
+    canRetry: ({ context }) => context.retryCount < MAX_RETRIES,
+  },
 }).createMachine({
   id: 'orchestrator',
   initial: 'idle',
@@ -93,6 +104,8 @@ export const orchestratorMachine = setup({
     currentRole: null,
     results: [],
     error: null,
+    buildFeedback: null,
+    retryCount: 0,
   }),
 
   states: {
@@ -149,18 +162,51 @@ export const orchestratorMachine = setup({
           intent: context.intent,
           artifacts: context.artifacts,
           role: 'coder' as AgentRole,
+          ...(context.buildFeedback ? { buildFeedback: context.buildFeedback } : {}),
+          retryCount: context.retryCount,
         }),
         onDone: {
-          target: 'reviewer',
+          target: 'shadowBuild',
           actions: assign({
-            results: ({ context, event }) => [...context.results, event.output],
-            artifacts: ({ context, event }) => [...context.artifacts, ...event.output.artifacts],
+            results:       ({ context, event }) => [...context.results, event.output],
+            artifacts:     ({ context, event }) => [...context.artifacts, ...event.output.artifacts],
+            buildFeedback: () => null,
           }),
         },
         onError: {
           target: 'failed',
           actions: assign({ error: ({ event }) => String(event.error) }),
         },
+      },
+      on: { CANCEL: 'cancelled' },
+    },
+
+    /** In-process TypeScript type-check before Reviewer. Retries Coder on failure. */
+    shadowBuild: {
+      entry: assign({ currentRole: null }),
+      invoke: {
+        src: 'runShadowBuild',
+        input: ({ context }) => ({
+          taskId: context.taskId,
+          intent: context.intent,
+          artifacts: context.artifacts,
+          role: 'coder' as AgentRole,
+        }),
+        onDone: { target: 'reviewer' },
+        onError: [
+          {
+            guard: 'canRetry',
+            target: 'coder',
+            actions: assign({
+              buildFeedback: ({ event }) => String((event.error as Error).message ?? event.error),
+              retryCount:    ({ context }) => context.retryCount + 1,
+            }),
+          },
+          {
+            target: 'failed',
+            actions: assign({ error: ({ event }) => String(event.error) }),
+          },
+        ],
       },
       on: { CANCEL: 'cancelled' },
     },

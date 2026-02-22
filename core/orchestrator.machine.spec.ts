@@ -24,10 +24,11 @@ function makeResult(role: string): AgentResult {
 function makeSuccessMachine(autoApprove = true) {
   const machine = orchestratorMachine.provide({
     actors: {
-      runArchitect: fromPromise<AgentResult, AgentActorInput>(async () => makeResult('architect')),
-      runCoder:     fromPromise<AgentResult, AgentActorInput>(async () => makeResult('coder')),
-      runReviewer:  fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
-      runTester:    fromPromise<AgentResult, AgentActorInput>(async () => makeResult('tester')),
+      runArchitect:   fromPromise<AgentResult, AgentActorInput>(async () => makeResult('architect')),
+      runCoder:       fromPromise<AgentResult, AgentActorInput>(async () => makeResult('coder')),
+      runShadowBuild: fromPromise<AgentResult, AgentActorInput>(async () => makeResult('shadow')),
+      runReviewer:    fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
+      runTester:      fromPromise<AgentResult, AgentActorInput>(async () => makeResult('tester')),
     },
   });
   return { machine, autoApprove };
@@ -137,12 +138,13 @@ describe('OrchestratorMachine', () => {
   it('goes to failed when an agent throws', async () => {
     const machine = orchestratorMachine.provide({
       actors: {
-        runArchitect: fromPromise<AgentResult, AgentActorInput>(async () => {
+        runArchitect:   fromPromise<AgentResult, AgentActorInput>(async () => {
           throw new Error('LLM rate limit');
         }),
-        runCoder:    fromPromise<AgentResult, AgentActorInput>(async () => makeResult('coder')),
-        runReviewer: fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
-        runTester:   fromPromise<AgentResult, AgentActorInput>(async () => makeResult('tester')),
+        runCoder:       fromPromise<AgentResult, AgentActorInput>(async () => makeResult('coder')),
+        runShadowBuild: fromPromise<AgentResult, AgentActorInput>(async () => makeResult('shadow')),
+        runReviewer:    fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
+        runTester:      fromPromise<AgentResult, AgentActorInput>(async () => makeResult('tester')),
       },
     });
 
@@ -171,7 +173,8 @@ describe('OrchestratorMachine', () => {
           ...makeResult('coder'),
           artifacts: [{ type: 'code' as const, path: 'a.ts', content: '' }],
         })),
-        runReviewer: fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
+        runShadowBuild: fromPromise<AgentResult, AgentActorInput>(async () => makeResult('shadow')),
+        runReviewer:    fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
         runTester: fromPromise<AgentResult, AgentActorInput>(async () => ({
           ...makeResult('tester'),
           artifacts: [{ type: 'test' as const, path: 'a.spec.ts', content: '' }],
@@ -192,5 +195,91 @@ describe('OrchestratorMachine', () => {
     });
 
     expect(finalContext.artifacts).toHaveLength(3);
+  });
+
+  it('passes through shadowBuild state before reviewer', async () => {
+    const statesSeen: string[] = [];
+    const { machine } = makeSuccessMachine();
+
+    await new Promise<void>((resolve) => {
+      const actor = createActor(machine, { input: { taskId: 't1', intent: 'test' } });
+      actor.subscribe((state) => {
+        const val = state.value as string;
+        if (!statesSeen.includes(val)) statesSeen.push(val);
+        if (val === 'awaitingApproval') actor.send({ type: 'USER_APPROVED' });
+        if (state.status === 'done') resolve();
+      });
+      actor.start();
+      actor.send({ type: 'START', intent: 'test' });
+    });
+
+    expect(statesSeen).toContain('shadowBuild');
+    const shadowIdx  = statesSeen.indexOf('shadowBuild');
+    const reviewerIdx = statesSeen.indexOf('reviewer');
+    expect(shadowIdx).toBeLessThan(reviewerIdx);
+  });
+
+  it('retries coder when shadowBuild fails (within MAX_RETRIES)', async () => {
+    let coderCallCount = 0;
+    let shadowCallCount = 0;
+
+    const machine = orchestratorMachine.provide({
+      actors: {
+        runArchitect:   fromPromise<AgentResult, AgentActorInput>(async () => makeResult('architect')),
+        runCoder:       fromPromise<AgentResult, AgentActorInput>(async () => {
+          coderCallCount++;
+          return makeResult('coder');
+        }),
+        runShadowBuild: fromPromise<AgentResult, AgentActorInput>(async () => {
+          shadowCallCount++;
+          if (shadowCallCount === 1) throw new Error('TS2345: type mismatch');
+          return makeResult('shadow');
+        }),
+        runReviewer:    fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
+        runTester:      fromPromise<AgentResult, AgentActorInput>(async () => makeResult('tester')),
+      },
+    });
+
+    const finalState = await new Promise<string>((resolve) => {
+      const actor = createActor(machine, { input: { taskId: 't1', intent: 'retry test' } });
+      actor.subscribe((state) => {
+        if (state.matches('awaitingApproval')) actor.send({ type: 'USER_APPROVED' });
+        if (state.status === 'done') resolve(state.value as string);
+      });
+      actor.start();
+      actor.send({ type: 'START', intent: 'retry test' });
+      setTimeout(() => resolve('timeout'), 3000);
+    });
+
+    expect(finalState).toBe('done');
+    expect(coderCallCount).toBe(2);
+    expect(shadowCallCount).toBe(2);
+  });
+
+  it('fails after MAX_RETRIES shadow build failures', async () => {
+    const machine = orchestratorMachine.provide({
+      actors: {
+        runArchitect:   fromPromise<AgentResult, AgentActorInput>(async () => makeResult('architect')),
+        runCoder:       fromPromise<AgentResult, AgentActorInput>(async () => makeResult('coder')),
+        runShadowBuild: fromPromise<AgentResult, AgentActorInput>(async () => {
+          throw new Error('persistent TS error');
+        }),
+        runReviewer:    fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
+        runTester:      fromPromise<AgentResult, AgentActorInput>(async () => makeResult('tester')),
+      },
+    });
+
+    const finalState = await new Promise<string>((resolve) => {
+      const actor = createActor(machine, { input: { taskId: 't1', intent: 'max retry test' } });
+      actor.subscribe((state) => {
+        if (state.matches('awaitingApproval')) actor.send({ type: 'USER_APPROVED' });
+        if (state.status === 'done') resolve(state.value as string);
+      });
+      actor.start();
+      actor.send({ type: 'START', intent: 'max retry test' });
+      setTimeout(() => resolve('timeout'), 5000);
+    });
+
+    expect(finalState).toBe('failed');
   });
 });

@@ -13,8 +13,10 @@ import { createActor, type Actor } from 'xstate';
 import { orchestratorMachine, type OrchestratorContext } from '../core/orchestrator.machine.js';
 import { runArchitect } from '../agents/runArchitect.js';
 import { runCoder } from '../agents/runCoder.js';
+import { runShadowBuild } from '../agents/runShadowBuild.js';
 import { runReviewer } from '../agents/runReviewer.js';
 import { runTester } from '../agents/runTester.js';
+import { WorkspaceCommitter, nodeWorkspaceFs } from './core/vfs/WorkspaceCommitter.js';
 import { NexusGraphPanel } from '../ui/NexusGraphPanel.js';
 import { NexusApprovalPanel } from '../ui/NexusApprovalPanel.js';
 import type { AgentProgress } from './ui/webview.types.js';
@@ -59,7 +61,7 @@ export class NexusLoop {
   start(intent: string): void {
     const taskId = `nexus-${Date.now()}`;
     const machine = orchestratorMachine.provide({
-      actors: { runArchitect, runCoder, runReviewer, runTester },
+      actors: { runArchitect, runCoder, runShadowBuild, runReviewer, runTester },
     });
 
     this.#actor = createActor(machine, { input: { taskId, intent } });
@@ -92,9 +94,7 @@ export class NexusLoop {
       }
 
       if (stateName === 'done') {
-        void vscode.window.showInformationMessage(
-          `Nexus Loop complete — ${ctx.artifacts.length} artifact(s) generated.`,
-        );
+        void this.#onDone(ctx);
       }
 
       if (stateName === 'failed') {
@@ -109,6 +109,33 @@ export class NexusLoop {
 
     this.#actor.start();
     this.#actor.send({ type: 'START', intent });
+  }
+
+  /** Prompt user to commit generated artifacts to workspace */
+  async #onDone(ctx: OrchestratorContext): Promise<void> {
+    const fileArtifacts = ctx.artifacts.filter((a) => a.type === 'file' || a.type === 'code');
+    if (fileArtifacts.length === 0) {
+      void vscode.window.showInformationMessage('Nexus Loop complete — no file artifacts to write.');
+      return;
+    }
+
+    const paths = fileArtifacts.map((a) => a.path);
+    const choice = await vscode.window.showQuickPick(paths, {
+      title: `Nexus: Write ${fileArtifacts.length} file(s) to workspace?`,
+      canPickMany: true,
+      placeHolder: 'Select files to write (press Escape to skip)',
+    });
+
+    if (!choice || choice.length === 0) return;
+
+    const selected = fileArtifacts.filter((a) => choice.includes(a.path));
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
+    const committer = new WorkspaceCommitter(nodeWorkspaceFs);
+    const result = await committer.commit(ctx.taskId, selected, workspaceRoot);
+
+    void vscode.window.showInformationMessage(
+      `Nexus: wrote ${result.written.length} file(s) to workspace.`,
+    );
   }
 
   stop(): void {
