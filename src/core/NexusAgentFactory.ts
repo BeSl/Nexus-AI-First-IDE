@@ -2,15 +2,16 @@
  * NexusAgentFactory — Dependency Injection Assembly Root
  *
  * Constructs the full agent graph for production use:
- *   AnthropicGateway → AgentToolkit → Agent personas
+ *   GatewayFactory → AgentToolkit → Agent personas
  *
+ * Provider is selected via NEXUS_LLM_PROVIDER env (default: anthropic).
  * Each call to create() returns fresh agent instances.
- * API key is read from ANTHROPIC_API_KEY env variable.
  *
  * @security Never accepts secrets as parameters — env only.
  */
 
-import { AnthropicGateway } from './llm/AnthropicGateway.js';
+import { createGateway } from './llm/GatewayFactory.js';
+import type { LlmProvider } from './llm/GatewayFactory.js';
 import { AgentToolkit } from './llm/AgentToolkit.js';
 import { ContextEngine } from './context/ContextEngine.js';
 import { TFIDFVectorIndex } from './context/VectorIndex.js';
@@ -27,6 +28,13 @@ import type { ICoderAgent } from '../../agents/coder/coder.types.js';
 import type { IReviewerAgent } from '../../agents/reviewer/reviewer.types.js';
 import type { ITesterAgent } from '../../agents/tester/tester.types.js';
 
+export interface NexusAgentsOptions {
+  /** Override LLM provider (default: NEXUS_LLM_PROVIDER env, fallback 'anthropic') */
+  readonly provider?: LlmProvider;
+  /** Anthropic API key override (default: ANTHROPIC_API_KEY env) */
+  readonly anthropicApiKey?: string;
+}
+
 export interface NexusAgents {
   readonly architect: IArchitectAgent;
   readonly coder: ICoderAgent;
@@ -36,14 +44,17 @@ export interface NexusAgents {
   indexProject(dir: string): Promise<void>;
 }
 
-export function createNexusAgents(apiKey?: string): NexusAgents {
+export function createNexusAgents(opts: NexusAgentsOptions = {}): NexusAgents {
   const reader     = new NodeFileReader();
   const vectorIdx  = new TFIDFVectorIndex();
   const skeleton   = new SkeletonProvider();
   const ctx        = new ContextEngine(reader);
 
   // Each agent needing tools gets its own gateway (registerTools is stateful)
-  const mkGateway  = () => new AnthropicGateway(apiKey ? { apiKey } : {});
+  const mkGateway  = () => createGateway({
+    ...(opts.provider ? { provider: opts.provider } : {}),
+    ...(opts.anthropicApiKey ? { anthropicApiKey: opts.anthropicApiKey } : {}),
+  });
   const lspToolProvider = new LspToolProvider(new TypeScriptService());
   const toolkit    = new AgentToolkit(ctx, vectorIdx, skeleton, [lspToolProvider]);
 
