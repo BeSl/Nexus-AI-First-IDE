@@ -24,6 +24,11 @@
   "contributes": {
     "commands": [
       {
+        "command": "nexus.showWelcome",
+        "title": "Nexus: Мастер настройки",
+        "icon": "$(rocket)"
+      },
+      {
         "command": "nexus.showGraph",
         "title": "Nexus: Show Architecture Graph",
         "icon": "$(type-hierarchy-super)"
@@ -80,9 +85,14 @@
           "group": "navigation@1"
         },
         {
-          "command": "nexus.openSettings",
+          "command": "nexus.showWelcome",
           "when": "view == nexusStatus",
           "group": "navigation@2"
+        },
+        {
+          "command": "nexus.openSettings",
+          "when": "view == nexusStatus",
+          "group": "navigation@3"
         },
         {
           "command": "nexus.vfs.approveAll",
