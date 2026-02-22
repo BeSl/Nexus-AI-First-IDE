@@ -1,13 +1,24 @@
 /**
  * NexusWelcomeHtml — HTML template for the first-run setup wizard.
  * Four steps: Welcome → Provider → API key → First intent.
+ *
+ * Design rules that avoid VS Code webview parse errors:
+ *  - No inline onclick/onXxx handlers (removed — use addEventListener)
+ *  - No `<` operator in script (replaced with .length - 5 < 0 → use >=)
+ *  - No template literals inside the script block
+ *  - CSP uses nonce for the single script block
+ *
  * @security No user data injected into template; all input sent via postMessage.
  */
 
 /* eslint-disable max-len */
-export function buildWelcomeHtml(): string {
-  return `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
+export function buildWelcomeHtml(nonce: string): string {
+  return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--vscode-font-family);color:var(--vscode-foreground);
@@ -39,7 +50,7 @@ input,textarea{width:100%;padding:7px 10px;border-radius:3px;
 input:focus,textarea:focus{border-color:var(--vscode-focusBorder)}
 textarea{min-height:80px;resize:vertical}
 .hint{font-size:11px;color:var(--vscode-descriptionForeground);margin-top:6px}
-.hint a{color:var(--vscode-textLink-foreground);cursor:pointer}
+.hint a{color:var(--vscode-textLink-foreground);cursor:pointer;text-decoration:underline}
 .btns{display:flex;gap:8px;margin-top:22px}
 button{padding:7px 16px;border:none;border-radius:3px;font-size:13px;font-weight:600;
   cursor:pointer;font-family:inherit;
@@ -48,116 +59,182 @@ button.sec{background:var(--vscode-button-secondaryBackground);
            color:var(--vscode-button-secondaryForeground)}
 button:disabled{opacity:.45;cursor:not-allowed}
 button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
-</style></head><body>
-<div id="dots"><div class="dot on"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+</style>
+</head>
+<body>
 
+<div id="dots">
+  <div class="dot on" id="d1"></div>
+  <div class="dot" id="d2"></div>
+  <div class="dot" id="d3"></div>
+  <div class="dot" id="d4"></div>
+</div>
+
+<!-- Step 1: Welcome -->
 <div class="step active" id="s1">
-  <h1>🤖 Nexus Agent IDE</h1>
+  <h1>Nexus Agent IDE</h1>
   <p class="sub">AI-агент для создания TypeScript-приложений</p>
   <div class="flow">
-    <span class="ag">Architect</span><span class="ar">→</span>
-    <span class="ag">Coder</span><span class="ar">→</span>
-    <span class="ag">Reviewer</span><span class="ar">→</span>
+    <span class="ag">Architect</span><span class="ar">&#8594;</span>
+    <span class="ag">Coder</span><span class="ar">&#8594;</span>
+    <span class="ag">Reviewer</span><span class="ar">&#8594;</span>
     <span class="ag">Tester</span>
   </div>
   <p>Вы описываете задачу — Nexus проектирует архитектуру, пишет код, проверяет качество и генерирует тесты. Файлы попадают на диск только после вашего подтверждения.</p>
   <p>Давайте настроим расширение за минуту.</p>
   <div class="btns">
-    <button onclick="go(2)">Начать настройку →</button>
-    <button class="sec" onclick="skip()">Пропустить</button>
+    <button id="btn-start">Начать настройку &#8594;</button>
+    <button class="sec" id="btn-skip1">Пропустить</button>
   </div>
 </div>
 
+<!-- Step 2: Provider -->
 <div class="step" id="s2">
   <h2>Выберите AI-провайдера</h2>
   <div class="cards">
-    <div class="card" id="c-anthropic" onclick="pick('anthropic')">
-      <b>☁ Anthropic Claude</b>
+    <div class="card" id="c-anthropic">
+      <b>Anthropic Claude</b>
       <small>Лучшее качество кода. Нужен API-ключ (платно).</small>
     </div>
-    <div class="card" id="c-gemini" onclick="pick('gemini')">
-      <b>☁ Google Gemini</b>
+    <div class="card" id="c-gemini">
+      <b>Google Gemini</b>
       <small>Быстрый. Есть бесплатный уровень.</small>
     </div>
-    <div class="card" id="c-ollama" onclick="pick('ollama')">
-      <b>🖥 Ollama</b>
+    <div class="card" id="c-ollama">
+      <b>Ollama</b>
       <small>Локально, без ключей и интернета.</small>
     </div>
   </div>
   <div class="btns">
-    <button id="n2" onclick="go(3)" disabled>Далее →</button>
-    <button class="sec" onclick="go(1)">← Назад</button>
+    <button id="btn-n2" disabled>Далее &#8594;</button>
+    <button class="sec" id="btn-back2">&#8592; Назад</button>
   </div>
 </div>
 
+<!-- Step 3: API Key / Ollama URL -->
 <div class="step" id="s3">
   <h2 id="kt">API Key</h2>
   <label id="kl">Ключ</label>
-  <input id="ki" type="password" oninput="checkKey()" autocomplete="off">
+  <input id="ki" type="password" autocomplete="off" placeholder="">
   <div class="hint" id="kh"></div>
   <div class="btns">
-    <button id="n3" onclick="saveKey()" disabled>Далее →</button>
-    <button class="sec" onclick="go(2)">← Назад</button>
+    <button id="btn-n3" disabled>Далее &#8594;</button>
+    <button class="sec" id="btn-back3">&#8592; Назад</button>
   </div>
 </div>
 
+<!-- Step 4: First intent -->
 <div class="step" id="s4">
   <h2>Первая задача</h2>
   <p>Опишите, что хотите создать. Nexus сам разберётся с деталями реализации.</p>
   <label>Задача на русском или английском</label>
-  <textarea id="ii" oninput="checkIntent()"
-    placeholder="Например: REST API для управления задачами с JWT-авторизацией, TypeScript + Express + Zod"></textarea>
+  <textarea id="ii" placeholder="Например: REST API для управления задачами с JWT-авторизацией, TypeScript + Express + Zod"></textarea>
   <div class="hint">Чем точнее описание (стек, требования) — тем лучше результат.</div>
   <div class="btns">
-    <button class="go" id="launch" onclick="launch()" disabled>🚀 Запустить Nexus</button>
-    <button class="sec" onclick="go(3)">← Назад</button>
+    <button class="go" id="btn-launch" disabled>Запустить Nexus</button>
+    <button class="sec" id="btn-back4">&#8592; Назад</button>
   </div>
 </div>
 
-<script>
-const vs=acquireVsCodeApi(),dots=document.querySelectorAll('.dot');
-let step=1,prov='';
-const PI={
-  anthropic:['Anthropic API Key','API Key (sk-ant-...)','sk-ant-api03-...','password','console.anthropic.com'],
-  gemini:   ['Google Gemini API Key','API Key (AIza...)','AIzaSy...','password','aistudio.google.com/apikey'],
-  ollama:   ['Ollama — URL сервера','URL сервера','http://localhost:11434','text','ollama.ai/download'],
-};
-function go(n){
-  if(n===3)refreshKey();
-  document.getElementById('s'+step).classList.remove('active');
-  dots[step-1].classList.remove('on');
-  step=n;
-  document.getElementById('s'+step).classList.add('active');
-  dots[step-1].classList.add('on');
-}
-function pick(p){
-  prov=p;
-  document.querySelectorAll('.card').forEach(el=>el.classList.remove('sel'));
-  document.getElementById('c-'+p).classList.add('sel');
-  document.getElementById('n2').disabled=false;
-  vs.postMessage({type:'wizard:setProvider',provider:p});
-}
-function refreshKey(){
-  const [t,l,ph,tp,url]=PI[prov]||PI.anthropic;
-  document.getElementById('kt').textContent=t;
-  document.getElementById('kl').textContent=l;
-  const ki=document.getElementById('ki');
-  ki.placeholder=ph; ki.type=tp;
-  ki.value=tp==='text'?ph:'';
-  document.getElementById('kh').innerHTML='Получить: <a onclick="vs.postMessage({type:\'wizard:openUrl\',url:\'https://'+url+'\'})">'+url+'</a>';
-  checkKey();
-}
-function checkKey(){
-  const v=document.getElementById('ki').value.trim();
-  document.getElementById('n3').disabled=!(prov==='ollama'?v.startsWith('http'):v.length>8);
-}
-function saveKey(){
-  const v=document.getElementById('ki').value.trim();
-  vs.postMessage(prov==='ollama'?{type:'wizard:setOllamaUrl',url:v}:{type:'wizard:setApiKey',provider:prov,key:v});
-  go(4);
-}
-function checkIntent(){document.getElementById('launch').disabled=document.getElementById('ii').value.trim().length<5;}
-function launch(){const i=document.getElementById('ii').value.trim();if(i.length>=5)vs.postMessage({type:'wizard:launch',intent:i});}
-function skip(){vs.postMessage({type:'wizard:skip'});}
-</script></body></html>`;
+<script nonce="${nonce}">
+(function () {
+  'use strict';
+  var vs = acquireVsCodeApi();
+  var step = 1;
+  var prov = '';
+
+  var PI = {
+    anthropic: { title: 'Anthropic API Key', label: 'API Key (sk-ant-...)', ph: 'sk-ant-api03-...', tp: 'password', url: 'console.anthropic.com' },
+    gemini:    { title: 'Google Gemini API Key', label: 'API Key (AIza...)', ph: 'AIzaSy...', tp: 'password', url: 'aistudio.google.com/apikey' },
+    ollama:    { title: 'Ollama — URL сервера', label: 'URL сервера', ph: 'http://localhost:11434', tp: 'text', url: 'ollama.ai/download' }
+  };
+
+  function go(n) {
+    document.getElementById('s' + step).classList.remove('active');
+    document.getElementById('d' + step).classList.remove('on');
+    step = n;
+    document.getElementById('s' + step).classList.add('active');
+    document.getElementById('d' + step).classList.add('on');
+    if (n === 3) { refreshKey(); }
+  }
+
+  function pick(p) {
+    prov = p;
+    ['anthropic', 'gemini', 'ollama'].forEach(function (id) {
+      document.getElementById('c-' + id).classList.remove('sel');
+    });
+    document.getElementById('c-' + p).classList.add('sel');
+    document.getElementById('btn-n2').removeAttribute('disabled');
+    vs.postMessage({ type: 'wizard:setProvider', provider: p });
+  }
+
+  function refreshKey() {
+    var info = PI[prov] || PI.anthropic;
+    document.getElementById('kt').textContent = info.title;
+    document.getElementById('kl').textContent = info.label;
+    var ki = document.getElementById('ki');
+    ki.placeholder = info.ph;
+    ki.type = info.tp;
+    ki.value = info.tp === 'text' ? info.ph : '';
+
+    var hintEl = document.getElementById('kh');
+    hintEl.textContent = 'Получить: ';
+    var link = document.createElement('a');
+    link.textContent = info.url;
+    link.href = '#';
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      vs.postMessage({ type: 'wizard:openUrl', url: 'https://' + info.url });
+    });
+    hintEl.appendChild(link);
+    checkKey();
+  }
+
+  function checkKey() {
+    var v = document.getElementById('ki').value.trim();
+    var ok = prov === 'ollama' ? v.indexOf('http') === 0 : v.length > 8;
+    var btn = document.getElementById('btn-n3');
+    if (ok) { btn.removeAttribute('disabled'); } else { btn.setAttribute('disabled', ''); }
+  }
+
+  function saveKey() {
+    var v = document.getElementById('ki').value.trim();
+    if (prov === 'ollama') {
+      vs.postMessage({ type: 'wizard:setOllamaUrl', url: v });
+    } else {
+      vs.postMessage({ type: 'wizard:setApiKey', provider: prov, key: v });
+    }
+    go(4);
+  }
+
+  function checkIntent() {
+    var v = document.getElementById('ii').value.trim();
+    var btn = document.getElementById('btn-launch');
+    if (v.length >= 5) { btn.removeAttribute('disabled'); } else { btn.setAttribute('disabled', ''); }
+  }
+
+  function launch() {
+    var intent = document.getElementById('ii').value.trim();
+    if (intent.length >= 5) { vs.postMessage({ type: 'wizard:launch', intent: intent }); }
+  }
+
+  // ── Wire up buttons ──────────────────────────────────────────────────────
+
+  document.getElementById('btn-start').addEventListener('click',  function () { go(2); });
+  document.getElementById('btn-skip1').addEventListener('click',  function () { vs.postMessage({ type: 'wizard:skip' }); });
+  document.getElementById('btn-back2').addEventListener('click',  function () { go(1); });
+  document.getElementById('btn-n2').addEventListener('click',     function () { go(3); });
+  document.getElementById('c-anthropic').addEventListener('click',function () { pick('anthropic'); });
+  document.getElementById('c-gemini').addEventListener('click',   function () { pick('gemini'); });
+  document.getElementById('c-ollama').addEventListener('click',   function () { pick('ollama'); });
+  document.getElementById('btn-back3').addEventListener('click',  function () { go(2); });
+  document.getElementById('btn-n3').addEventListener('click',     saveKey);
+  document.getElementById('ki').addEventListener('input',         checkKey);
+  document.getElementById('btn-back4').addEventListener('click',  function () { go(3); });
+  document.getElementById('btn-launch').addEventListener('click', launch);
+  document.getElementById('ii').addEventListener('input',         checkIntent);
+}());
+</script>
+</body>
+</html>`;
 }

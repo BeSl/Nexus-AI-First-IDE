@@ -1,7 +1,7 @@
 {
   "name": "nexus-agent-ide",
   "displayName": "Nexus Agent IDE",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "description": "AI-First IDE — agentic TypeScript development powered by Claude & local LLMs",
   "publisher": "nexus-ai",
   "categories": [
@@ -14,13 +14,13 @@
   },
   "license": "MIT",
   "private": true,
-  "main": "./dist/src/extension.js",
+  "main": "./dist/extension.js",
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0",
     "vscode": "^1.109.0"
   },
-  "activationEvents": [],
+  "activationEvents": ["onStartupFinished"],
   "contributes": {
     "commands": [
       {
@@ -52,6 +52,11 @@
         "command": "nexus.vfs.discardAll",
         "title": "Nexus: Discard All Staged Files",
         "icon": "$(trash)"
+      },
+      {
+        "command": "nexus.vfs.preview",
+        "title": "Nexus: Preview Staged File",
+        "icon": "$(eye)"
       }
     ],
     "viewsContainers": {
@@ -78,6 +83,9 @@
       ]
     },
     "menus": {
+      "commandPalette": [
+        { "command": "nexus.vfs.preview", "when": "never" }
+      ],
       "view/title": [
         {
           "command": "nexus.run",
