@@ -1,132 +1,205 @@
 # Nexus Agent IDE
 
-> AI-First IDE built on Code-OSS/VSCodium — Human as Architect, AI as Implementor.
+> AI-First development environment built on VS Code Extension API.
+> Human as Architect — agents as implementers.
+
+---
+
+## What Is This
+
+Nexus is a VS Code extension that orchestrates a multi-agent loop (Architect → Coder → Reviewer → Tester) over your TypeScript codebase. Every agent call goes through a deterministic XState machine — no implicit side effects, no random retries. Code is written to an in-memory VFS and only committed to disk after human approval.
+
+---
 
 ## Architecture
 
 ```
-nexus-agent-ide/
-├── core/                        # Contracts & orchestration
-│   ├── orchestrator.types.ts    # AgentTask, AgentResult, IOrchestratorService
-│   ├── orchestrator.machine.ts  # XState: idle→architect→coder→reviewer→tester→done
-│   ├── orchestrator.ts          # OrchestratorService (DI wiring)
-│   ├── context-engine.types.ts  # IContextEngine, FileSkeleton, ContextQuery
-│   └── vfs.types.ts             # IVirtualFileSystem (staged writes sandbox)
-│
-├── src/core/
-│   ├── context/
-│   │   ├── ContextEngine.ts          # IContextEngine impl: keyword ranking + token budget
-│   │   ├── SkeletonProvider.ts       # fromContent / fromFile / fromDirectory
-│   │   ├── skeleton-transformer.ts   # TypeScript Compiler API → text splice
-│   │   └── SkeletonProvider.types.ts # ISkeletonProvider, SkeletonResult
-│   └── builder/
-│       ├── BuildOrchestrator.ts      # Shadow build pipeline
-│       ├── ShadowFS.ts               # ~/.nexus/shadow-build/<taskId> isolation
-│       ├── ErrorAnalyzer.ts          # tsc/esbuild error parser + auto-fix
-│       └── BuildRunner.ts            # execSync wrapper (injectable)
-│
-├── agents/
-│   └── architect/
-│       └── architect.types.ts        # IArchitectAgent, ParsedIntent, ModuleBlueprint
-│
-├── patches/                     # Git patches applied to vscode-src (naming: NNNN-scope-desc.patch)
-├── build-scripts/               # Clone, patch, build automation
-│   ├── clone-vscode.mjs         # Shallow-clone vscode@1.96.4
-│   ├── apply-patches.mjs        # Apply /patches/*.patch in order
-│   └── vscode-version.json      # { tag, sha, vscodiumBase }
-└── vscode-src/                  # Code-OSS source (git-ignored, ~700MB)
+┌─────────────────────────────────────────────────────────────┐
+│  VS Code Extension  (src/extension.ts)                       │
+│    nexus.run ──► NexusLoop ──► XState orchestratorMachine   │
+│    nexus.showGraph ──► NexusGraphPanel (React Flow DAG)      │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ actors
+         ┌─────────────────┼────────────────────┐
+         ▼                 ▼                    ▼
+   runArchitect       runCoder         runReviewer / runTester
+         │                │
+         ▼                ▼
+   ArchitectAgent    CoderAgent  ──► InMemoryVFS ──► VFSCommitter
+         │                │
+         └────────────────┴── AnthropicGateway (Claude)
+                                    │
+                              AgentToolkit
+                         ┌──────────┴──────────┐
+                    core tools            LSP extras
+                 context_query           ts_diagnostics
+                 vector_search           ts_type_coverage
+                 read_skeleton           ts_find_export
 ```
+
+### Key Layers
+
+| Layer | Path | Role |
+|-------|------|------|
+| XState machine | [core/orchestrator.machine.ts](core/orchestrator.machine.ts) | Deterministic state transitions |
+| Agent personas | [agents/](agents/) | Architect, Coder, Reviewer, Tester |
+| LLM Gateway | [src/core/llm/](src/core/llm/) | Anthropic SDK + MCP tool protocol |
+| Context Engine | [src/core/context/](src/core/context/) | TF-IDF index + skeleton provider |
+| LSP Layer | [src/core/lsp/](src/core/lsp/) | TypeScript Compiler API diagnostics |
+| VFS | [core/vfs.types.ts](core/vfs.types.ts) | In-memory file system (staged writes) |
+| AgentTS Linter | [agent-ts/](agent-ts/) | Contract-first rule enforcement DSL |
+| React Flow UI | [webview-src/](webview-src/) | Live DAG of XState states |
+| VS Code Entry | [src/extension.ts](src/extension.ts) | Commands + WebviewPanel lifecycle |
+
+---
+
+## Completed Phases
+
+| # | Phase | What Was Built | Tests |
+|---|-------|---------------|-------|
+| 1 | Foundation | VectorIndex (TF-IDF), AnthropicGateway, InMemoryVFS | ✓ |
+| 2 | Context | SkeletonProvider (TS Compiler API), ContextEngine | ✓ |
+| 3 | AgentTS | NexusLinter, ContractValidator, OrchestratorBridge | ✓ |
+| 4 | Agents | ArchitectAgent, CoderAgent, ReviewerAgent, TesterAgent, XState orchestrator | ✓ |
+| 4.1 | Blueprints | BlueprintRegistry, PluginRegistry, NexusApprovalPanel | ✓ |
+| 4.2 | UI + Extension | React Flow Webview, VS Code Extension entry point (`nexus.run`, `nexus.showGraph`) | ✓ |
+| 5 | LSP | TypeScriptService (in-process), LspToolProvider, AgentToolkit extras pattern | ✓ |
+
+**263 / 263 tests passing. `tsc --strict` clean.**
+
+---
 
 ## Quick Start
 
+### Prerequisites
+
+- Node.js ≥ 18, npm ≥ 9
+- VS Code ≥ 1.96
+- Anthropic API key
+
+### Install & Build
+
 ```bash
-# 1. Install dependencies
+git clone https://github.com/BeSl/Nexus-AI-First-IDE.git
+cd Nexus-AI-First-IDE
 npm install
 
-# 2. Fetch Code-OSS source (VSCode 1.96.4, shallow clone)
-npm run vscode:clone
+# Compile extension host (TypeScript → dist/)
+npm run compile
 
-# 3. Apply Nexus patches (none yet — first run is a no-op)
-npm run patch:apply
+# Build React Flow webview bundle (→ dist/webview/)
+npm run build:webview
+```
 
-# 4. Run tests
+### Environment
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### Test
+
+```bash
 npm test
-
-# 5. Start development
-npm run dev
+# 263 tests across 22 test files
 ```
 
-## The Nexus Loop (Development Workflow)
+### Run in VS Code
+
+Press **F5** (Extension Development Host) or install the `.vsix`.
+
+Commands available via `Ctrl+Shift+P`:
+- **`Nexus: Show Architecture Graph`** — opens React Flow DAG panel
+- **`Nexus: Run Agent Loop`** — prompts for intent, starts the agent pipeline
+
+---
+
+## The Nexus Loop
 
 ```
-Intent (natural language)
+User Intent (natural language)
   ↓
-ContextEngine.query()      ← skeletons only, no implementation
+ArchitectAgent.parseIntent() + designModules()
+  ↓ artifacts: [*.types.ts interfaces]
+[User approves blueprint]  ← awaitingApproval gate
   ↓
-Architect Agent            ← designs interfaces, never code
+CoderAgent.implement()
+  ↓ code written to InMemoryVFS
+ReviewerAgent.review()     ← SAST: no `any`, no secrets
   ↓
-[User approves blueprint]  ← awaitingApproval gate in XState
+TesterAgent.generateTests()
   ↓
-Coder Agent                ← implements against the contracts
-  ↓
-Reviewer Agent             ← static analysis, security audit
-  ↓
-Tester Agent               ← generates & runs tests
-  ↓
-BuildOrchestrator          ← shadow build in ~/.nexus/shadow-build/
-  ↓
-[User confirms VFS diff]   ← VFS.confirm() writes to real disk
+[User confirms VFS diff]   ← VFSCommitter → real disk
 ```
 
-**Rule:** Agents NEVER read files directly — only via `ContextEngine.query()`.
+**Rule:** Agents never read files directly — only via `ContextEngine.query()` and LSP tools.
 
-## Implementation Status
+---
 
-| Module | Status | Tests |
-|--------|--------|-------|
-| `core/orchestrator.machine` | ✅ XState machine | 7/7 |
-| `core/orchestrator` | ✅ OrchestratorService (DI) | — |
-| `core/context-engine.types` | ✅ Contracts | — |
-| `core/vfs.types` | ✅ Contracts | — |
-| `src/core/context/SkeletonProvider` | ✅ TypeScript Compiler API | 22/22 |
-| `src/core/context/ContextEngine` | ✅ Keyword ranking + token budget | 13/13 |
-| `src/core/builder/BuildOrchestrator` | ✅ Shadow build pipeline | 16/16 |
-| `src/core/builder/ErrorAnalyzer` | ✅ tsc/esbuild parser + auto-fix | — |
-| `src/core/llm/AnthropicGateway` | ✅ Claude API + MCP | 9/9 |
-| `src/core/context/VectorIndex` | ✅ TF-IDF vector index | 10/10 |
-| `src/core/vfs/InMemoryVFS` | ✅ Staged writes + confirm | 17/17 |
-| `agents/architect` | 🔲 Contracts only | — |
-| LSP Layer | 🔲 Planned | — |
-| ArchitectureGraph (Webview) | 🔲 Planned | — |
+## Project Structure
 
-**Total: 94/94 tests passing**
+```
+nexus-agent-ide/
+├── core/                    # Shared contracts (XState machine, orchestrator types, VFS)
+├── src/
+│   ├── core/
+│   │   ├── context/         # ContextEngine, VectorIndex, SkeletonProvider
+│   │   ├── llm/             # AnthropicGateway, AgentToolkit, LspToolProvider
+│   │   ├── lsp/             # TypeScriptService, LspToolProvider, lsp.types
+│   │   ├── builder/         # BuildOrchestrator, ShadowFS, ErrorAnalyzer
+│   │   ├── security/        # SastRunner + NexusLinter rules
+│   │   └── NexusAgentFactory.ts  # DI root
+│   ├── extension.ts         # VS Code activate / deactivate
+│   └── NexusLoop.ts         # XState actor wiring → NexusGraphPanel
+├── agents/
+│   ├── architect/           # ArchitectAgent
+│   ├── coder/               # CoderAgent
+│   ├── reviewer/            # ReviewerAgent
+│   └── tester/              # TesterAgent
+├── agent-ts/                # AgentTS DSL / Contract linter
+├── ui/                      # NexusGraphPanel, NexusApprovalPanel
+├── webview-src/             # React Flow app (browser bundle)
+├── build-scripts/           # esbuild + tsc automation
+└── dist/                    # Compiled output (git-ignored)
+    ├── src/extension.js     # Extension host entry
+    └── webview/index.js     # React webview bundle
+```
+
+---
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Base IDE | Code-OSS 1.96.4 (VSCodium-style fork) |
-| Language | TypeScript 5.9 (Strict Mode) |
+| Language | TypeScript 5.4 (strict + exactOptionalPropertyTypes) |
 | State machines | XState 5 |
-| Validation | Zod |
-| AST parsing | TypeScript Compiler API |
-| Protocol | LSP + MCP (planned) |
+| LLM | Anthropic Claude (`claude-sonnet-4-6`) via MCP tool protocol |
+| AST / LSP | TypeScript Compiler API (in-process, no tsserver) |
+| UI | React 19 + @xyflow/react (React Flow v12) |
+| Bundler | esbuild (webview), tsc (extension host) |
 | Tests | Vitest |
-| Build isolation | `~/.nexus/shadow-build/` |
+| Validation | Zod |
 
-## Key Design Decisions
+---
 
-### SkeletonProvider — TypeScript Compiler API
-Uses **text splice** (not AST re-print) to preserve JSDoc comments naturally.
-All function/method bodies → `{ /* implementation hidden */ }`.
-Private/protected class members removed entirely.
+## Security Model
 
-### ContextEngine — Phase 1 Keyword Ranking
-No embedding API required. Scores files by token overlap with `intent` string.
-`scope` filter narrows candidates, `maxTokens` caps the response budget.
-Phase 2: swap `overlap()` for real cosine similarity on embeddings.
+- No secrets in code — `ANTHROPIC_API_KEY` via env only
+- Agent output stays in VFS until user clicks Approve
+- All LLM tool calls read-only (`@security` JSDoc everywhere)
+- SAST rules: no `any`, no hardcoded secrets, max 150 lines/file
+- `TypeScriptService.getDiagnostics(path, sourceOverride)` — staged source never touches disk
 
-### BuildOrchestrator — Shadow Build Isolation
-Never touches real project FS. All changes staged in VFS first.
-Shadow dir `~/.nexus/shadow-build/<taskId>` is always cleaned up (even on error).
-`IBuildRunner` is injected → `execSync` never runs in unit tests.
+---
+
+## Roadmap
+
+See [NEXUS_ROADMAP.md](NEXUS_ROADMAP.md) for the full phase plan.
+
+| Phase | Goal |
+|-------|------|
+| 6 | VFS → Real FS: write approved artifacts to disk via VS Code workspace API |
+| 7 | Shadow Build: `tsc --noEmit` in a temp dir against VFS content before approval |
+| 8 | Multi-model: swap Anthropic for Gemini / Ollama via `ILLMGateway` |
+| 9 | VS Code Tree View sidebar for staged VFS diff |
+| 10 | `.vsix` packaging + extension marketplace publish |
