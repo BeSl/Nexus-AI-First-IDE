@@ -10,6 +10,7 @@
 
 import { setup, assign, fromPromise } from 'xstate';
 import type { AgentRole, AgentResult, Artifact } from './orchestrator.types.js';
+import { runArchitect } from '../agents/runArchitect';
 
 // ── Machine Context ──────────────────────────────────────────────────────────
 

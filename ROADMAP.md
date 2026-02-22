@@ -78,19 +78,21 @@
 
 **Цель:** Внедрить строгие правила разработки, которые сделают код поддерживаемым и безопасным.
 
-### 3.1. AgentTS Framework
+### 3.1. AgentTS Framework ✅
 
-- [ ] Набор ESLint/Biome правил, блокирующих "плохой" код от ИИ
-- [ ] Contract-First Engine: запрет на генерацию логики без предварительных интерфейсов
+- [x] **NexusLinter** — NEXUS-001…008: no-any, no-secrets, no-direct-fs, JSDoc, max-lines, private-hash, no-console, implements (20/20 тестов)
+- [x] **ContractValidator** — Contract-First: проверяет .types.ts перед имплементацией (11/11 тестов)
+- [x] `agent-ts/index.ts` — публичный API агентского DSL
 
-### 3.2. Human-in-the-Loop Dashboard
+### 3.2. Human-in-the-Loop Dashboard ✅ (protocol layer)
 
-- [ ] UI-панель "Review & Diff" (VS Code Webview) — одобрение изменений поблочно
-- [ ] Визуализация графа зависимостей (React Flow)
+- [x] **webview.types.ts** — протокол Extension↔Webview: OrchestratorState, Diff, BuildResult, Approve/Reject/Cancel
+- [x] **OrchestratorBridge** — XState → WebviewMessage, дедупликация состояний (13/13 тестов)
+- [ ] React Flow Webview компонент (Фаза 4)
 
-### 3.3. TDD Automation
+### 3.3. TDD Automation ✅
 
-- [ ] Агент-тестировщик — пишет тесты на Vitest/Playwright параллельно с кодом
+- [x] **TesterAgent** — генерирует Vitest тесты параллельно с реализацией
 
 ---
 
@@ -153,7 +155,10 @@
 | `agents/coder/CoderAgent`          | 9/9   | ✅ реализован |
 | `agents/reviewer/ReviewerAgent`    | 9/9   | ✅ реализован |
 | `agents/tester/TesterAgent`        | 9/9   | ✅ реализован |
-| **Итого**                          | **160/160** | ✅        |
+| `agent-ts/NexusLinter`             | 20/20 | ✅ реализован |
+| `agent-ts/ContractValidator`       | 11/11 | ✅ реализован |
+| `src/ui/OrchestratorBridge`        | 13/13 | ✅ реализован |
+| **Итого**                          | **204/204** | ✅        |
 
 План развития: От инфраструктуры к Интеллекту
 1. Реализация конкретных Агентов (Personas)

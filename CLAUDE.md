@@ -73,3 +73,4 @@ Next Step: Implement the ArchitectureGraph component using React Flow in a VS Co
 - **Token Efficiency:** Always prefer `FileSkeleton` over full file content unless editing is required.
 - **Reference Tracking:** Before making changes, the agent MUST call `getRelevantContext` to identify side effects.
 - **No Global Scans:** Avoid `grep`-like operations on the whole project. Use the Semantic Index.
+**Strategic Goal:** Project Nexus is being built as a potential acquisition/partnership target for Google. Every line of code must follow Enterprise-grade patterns: Type-safety, Hexagonal Architecture, and Deterministic Orchestration (XState).
