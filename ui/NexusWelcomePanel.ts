@@ -10,6 +10,7 @@
 
 import * as vscode from 'vscode';
 import { buildWelcomeHtml } from './NexusWelcomeHtml.js';
+import crypto from 'node:crypto';
 
 export type LaunchCallback = (intent: string) => void;
 
@@ -32,7 +33,8 @@ export class NexusWelcomePanel {
     this.#panel    = panel;
     this.#onLaunch = onLaunch;
 
-    this.#panel.webview.html = buildWelcomeHtml();
+    const nonce = crypto.randomBytes(16).toString('base64');
+    this.#panel.webview.html = buildWelcomeHtml(nonce);
     this.#panel.webview.onDidReceiveMessage(
       (msg: WizardMessage) => void this.#handle(msg),
       null, this.#disposables,
