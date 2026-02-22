@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "description": "AI-First IDE — agentic TypeScript development powered by Claude & local LLMs",
   "publisher": "nexus-ai",
-  "categories": ["Programming Languages", "Other"],
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/nexus-ai/nexus-agent-ide"
@@ -15,15 +18,27 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0",
-    "vscode": "^1.96.0"
+    "vscode": "^1.109.0"
   },
   "activationEvents": [],
   "contributes": {
     "commands": [
-      { "command": "nexus.showGraph",      "title": "Nexus: Show Architecture Graph" },
-      { "command": "nexus.run",            "title": "Nexus: Run Agent Loop" },
-      { "command": "nexus.vfs.approveAll", "title": "Nexus: Approve All Staged Files" },
-      { "command": "nexus.vfs.discardAll", "title": "Nexus: Discard All Staged Files" }
+      {
+        "command": "nexus.showGraph",
+        "title": "Nexus: Show Architecture Graph"
+      },
+      {
+        "command": "nexus.run",
+        "title": "Nexus: Run Agent Loop"
+      },
+      {
+        "command": "nexus.vfs.approveAll",
+        "title": "Nexus: Approve All Staged Files"
+      },
+      {
+        "command": "nexus.vfs.discardAll",
+        "title": "Nexus: Discard All Staged Files"
+      }
     ],
     "viewsContainers": {
       "activitybar": [
@@ -67,7 +82,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts,.tsx",
-    "package": "vsce package --no-dependencies",
+    "package": "node -r ./build-scripts/polyfill-globals.cjs ./node_modules/.bin/vsce package --no-dependencies",
     "patch:apply": "node build-scripts/apply-patches.mjs",
     "patch:create": "node build-scripts/create-patch.mjs",
     "vscode:clone": "node build-scripts/clone-vscode.mjs"
@@ -78,13 +93,13 @@
     "core"
   ],
   "devDependencies": {
-    "@vscode/vsce": "^3.2.0",
     "@types/node": "^20.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/vscode": "^1.109.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@vscode/vsce": "^2.32.0",
     "esbuild": "^0.27.3",
     "eslint": "^8.57.0",
     "typescript": "^5.4.0",

@@ -2,7 +2,14 @@
 # Controls what is included in the packaged .vsix extension.
 # Only dist/ + package.json + README.md are required at runtime.
 
-# ── Source (not needed in packaged extension) ─────────────────────────────────
+# ── SECURITY: never ship secrets or dev config ───────────────────────────────
+.env
+.env.*
+.claude/
+*.local.json
+setup.sh
+
+# ── Source TypeScript (compiled to dist/ already) ────────────────────────────
 src/**
 core/**
 agents/**
@@ -13,27 +20,39 @@ webview-src/**
 patches/**
 build-scripts/**
 
-# ── Test & Config files ───────────────────────────────────────────────────────
+# ── Test & config files ───────────────────────────────────────────────────────
 **/*.spec.ts
 **/*.test.ts
 **/*.spec.js
+**/*.spec.js.map
 vitest.config.ts
 tsconfig*.json
 .eslintrc*
 .prettierrc*
 
-# ── Dev/CI infrastructure ─────────────────────────────────────────────────────
+# ── Dev / CI infrastructure ───────────────────────────────────────────────────
 .github/**
 .git/**
 *.vsix
+memory/
 
-# ── Docs & misc ───────────────────────────────────────────────────────────────
+# ── Internal docs (not for end users) ────────────────────────────────────────
 ROADMAP.md
 NEXUS_ROADMAP.md
-memory/
+NEXUS_STATE.md
+CLAUDE.md
 *.log
+docs/
 
-# ── Keep these ────────────────────────────────────────────────────────────────
+# ── Large dev assets ──────────────────────────────────────────────────────────
+03.png
+04.png
+.gitignore
+.gitattributes
+
+# ── Keep these (runtime requirements) ────────────────────────────────────────
 !dist/**
 !package.json
 !README.md
+!LICENSE
+!logo.png
