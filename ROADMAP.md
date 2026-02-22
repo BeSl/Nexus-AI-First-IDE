@@ -100,9 +100,11 @@
 
 **Цель:** Оптимизация под высокие нагрузки и кроссплатформенную разработку.
 
-### 4.1. Cross-Platform SDKs
+### 4.1. Cross-Platform SDKs ✅
 
-- [ ] Шаблоны (Blueprints) для React Native, Electron и Backend (Node/Bun)
+- [x] **BlueprintRegistry** — 4 встроенных шаблона: `node-backend`, `electron`, `react-native`, `web-extension`
+- [x] Переменная интерполяция `{{name}}`, `{{author}}`, `{{description}}` — без eval (14/14 тестов)
+- [x] Extensible API — `registry.register(customBlueprint)`
 
 ### 4.2. Security Layer ✅
 
@@ -174,7 +176,8 @@
 | `src/ui/OrchestratorBridge`        | 13/13 | ✅ реализован |
 | `src/core/security/SastRunner`     | 11/11 | ✅ реализован |
 | `src/core/plugins/PluginRegistry`  | 13/13 | ✅ реализован |
-| **Итого**                          | **228/228** | ✅        |
+| `src/core/blueprints/BlueprintRegistry` | 14/14 | ✅ реализован |
+| **Итого**                          | **242/242** | ✅        |
 
 План развития: От инфраструктуры к Интеллекту
 1. Реализация конкретных Агентов (Personas)
