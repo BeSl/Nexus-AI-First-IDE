@@ -10,13 +10,14 @@
 
 import { fromPromise } from 'xstate';
 import { createNexusAgents } from '../src/core/NexusAgentFactory.js';
-import type { AgentResult, Artifact } from '../core/orchestrator.types.js';
+import type { AgentResult, AgentRole, Artifact } from '../core/orchestrator.types.js';
 import type { ArchitectOutput } from './architect/architect.types.js';
 
 interface CoderActorInput {
   readonly taskId: string;
   readonly intent: string;
   readonly artifacts: readonly Artifact[];
+  readonly role: AgentRole;
   /** BuildFeedback.format() output from previous failed shadow build */
   readonly buildFeedback?: string;
   readonly retryCount?: number;
@@ -41,8 +42,8 @@ export const runCoder = fromPromise<AgentResult, CoderActorInput>(
 
     const output = await agents.coder.implement({
       architectOutput,
-      buildFeedback: input.buildFeedback,
       retryCount: input.retryCount ?? 0,
+      ...(input.buildFeedback ? { buildFeedback: input.buildFeedback } : {}),
     });
 
     return {

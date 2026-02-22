@@ -133,6 +133,7 @@ function rep(body: ts.Block, sf: ts.SourceFile, text: string): Rep {
 
 function isPrivateMember(member: ts.ClassElement): boolean {
   if (member.name && ts.isPrivateIdentifier(member.name)) return true;
+  if (!ts.canHaveModifiers(member)) return false;
   return (ts.getModifiers(member) ?? []).some(
     (m) =>
       m.kind === ts.SyntaxKind.PrivateKeyword ||

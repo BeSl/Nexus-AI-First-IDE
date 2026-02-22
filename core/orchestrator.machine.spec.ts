@@ -6,6 +6,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createActor, fromPromise } from 'xstate';
 import { orchestratorMachine } from './orchestrator.machine.js';
+import type { AgentActorInput } from './orchestrator.machine.js';
 import type { AgentResult } from './orchestrator.types.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -23,10 +24,10 @@ function makeResult(role: string): AgentResult {
 function makeSuccessMachine(autoApprove = true) {
   const machine = orchestratorMachine.provide({
     actors: {
-      runArchitect: fromPromise(async () => makeResult('architect')),
-      runCoder: fromPromise(async () => makeResult('coder')),
-      runReviewer: fromPromise(async () => makeResult('reviewer')),
-      runTester: fromPromise(async () => makeResult('tester')),
+      runArchitect: fromPromise<AgentResult, AgentActorInput>(async () => makeResult('architect')),
+      runCoder:     fromPromise<AgentResult, AgentActorInput>(async () => makeResult('coder')),
+      runReviewer:  fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
+      runTester:    fromPromise<AgentResult, AgentActorInput>(async () => makeResult('tester')),
     },
   });
   return { machine, autoApprove };
@@ -136,12 +137,12 @@ describe('OrchestratorMachine', () => {
   it('goes to failed when an agent throws', async () => {
     const machine = orchestratorMachine.provide({
       actors: {
-        runArchitect: fromPromise(async () => {
+        runArchitect: fromPromise<AgentResult, AgentActorInput>(async () => {
           throw new Error('LLM rate limit');
         }),
-        runCoder: fromPromise(async () => makeResult('coder')),
-        runReviewer: fromPromise(async () => makeResult('reviewer')),
-        runTester: fromPromise(async () => makeResult('tester')),
+        runCoder:    fromPromise<AgentResult, AgentActorInput>(async () => makeResult('coder')),
+        runReviewer: fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
+        runTester:   fromPromise<AgentResult, AgentActorInput>(async () => makeResult('tester')),
       },
     });
 
@@ -162,16 +163,16 @@ describe('OrchestratorMachine', () => {
   it('accumulates artifacts across all agents', async () => {
     const withArtifacts = orchestratorMachine.provide({
       actors: {
-        runArchitect: fromPromise(async () => ({
+        runArchitect: fromPromise<AgentResult, AgentActorInput>(async () => ({
           ...makeResult('architect'),
           artifacts: [{ type: 'schema' as const, path: 'a.types.ts', content: '' }],
         })),
-        runCoder: fromPromise(async () => ({
+        runCoder: fromPromise<AgentResult, AgentActorInput>(async () => ({
           ...makeResult('coder'),
           artifacts: [{ type: 'code' as const, path: 'a.ts', content: '' }],
         })),
-        runReviewer: fromPromise(async () => makeResult('reviewer')),
-        runTester: fromPromise(async () => ({
+        runReviewer: fromPromise<AgentResult, AgentActorInput>(async () => makeResult('reviewer')),
+        runTester: fromPromise<AgentResult, AgentActorInput>(async () => ({
           ...makeResult('tester'),
           artifacts: [{ type: 'test' as const, path: 'a.spec.ts', content: '' }],
         })),

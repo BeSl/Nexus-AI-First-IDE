@@ -15,6 +15,8 @@
 import { ALL_RULES } from './rules.js';
 import type { LintResult, LintViolation, NexusRule } from './rules.types.js';
 
+export type { LintResult } from './rules.types.js';
+
 export class NexusLinter {
   readonly #rules: readonly NexusRule[];
 

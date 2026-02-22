@@ -20,7 +20,7 @@ import type {
 import type { AgentId } from '../../core/orchestrator.types.js';
 import { ARCHITECT_SYSTEM_PROMPT } from './prompts.js';
 
-const AGENT_ID: AgentId = 'architect-v1';
+const AGENT_ID = 'architect-v1' as unknown as AgentId;
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 4096;
 

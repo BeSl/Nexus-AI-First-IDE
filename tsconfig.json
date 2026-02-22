@@ -9,7 +9,7 @@
     "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -21,6 +21,6 @@
       "@nexus/ui/*": ["./ui/*"]
     }
   },
-  "include": ["src/**/*", "core/**/*", "agents/**/*", "agent-ts/**/*"],
-  "exclude": ["node_modules", "dist", "vscode-src"]
+  "include": ["src/**/*", "core/**/*", "agents/**/*", "agent-ts/**/*", "ui/**/*"],
+  "exclude": ["node_modules", "dist", "vscode-src", "webview-src"]
 }

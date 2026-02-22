@@ -41,7 +41,7 @@ export function createNexusAgents(apiKey?: string): NexusAgents {
   const ctx        = new ContextEngine(reader);
 
   // Each agent needing tools gets its own gateway (registerTools is stateful)
-  const mkGateway  = () => new AnthropicGateway({ apiKey });
+  const mkGateway  = () => new AnthropicGateway(apiKey ? { apiKey } : {});
   const toolkit    = new AgentToolkit(ctx, vectorIdx, skeleton);
 
   return {

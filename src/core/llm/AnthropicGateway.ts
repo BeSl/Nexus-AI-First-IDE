@@ -83,35 +83,25 @@ export class AnthropicGateway implements ILLMGateway {
 
   // ── Private ────────────────────────────────────────────────────────────────
 
-  #buildRequest(
-    messages: readonly LLMMessage[],
-    opts: LLMRequestOptions
-  ): Anthropic.MessageCreateParamsBase {
-    const systemMsg = opts.system ?? '';
-    const anthropicMsgs = messages.map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }));
-
-    const base: Anthropic.MessageCreateParamsBase = {
+  #buildRequest(messages: readonly LLMMessage[], opts: LLMRequestOptions) {
+    return {
       model: opts.model ?? this.#defaultOpts.model,
       max_tokens: opts.maxTokens ?? this.#defaultOpts.maxTokens,
-      messages: anthropicMsgs,
+      messages: messages.map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      })),
+      ...(opts.system ? { system: opts.system } : {}),
+      ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+      ...(opts.stopSequences?.length ? { stop_sequences: [...opts.stopSequences] } : {}),
+      ...(this.#tools.length ? {
+        tools: this.#tools.map((t) => ({
+          name: t.name,
+          description: t.description,
+          input_schema: { type: 'object' as const, ...t.inputSchema },
+        })),
+      } : {}),
     };
-
-    if (systemMsg) (base as Record<string, unknown>)['system'] = systemMsg;
-    if (opts.temperature !== undefined) (base as Record<string, unknown>)['temperature'] = opts.temperature;
-    if (opts.stopSequences?.length) (base as Record<string, unknown>)['stop_sequences'] = opts.stopSequences;
-
-    if (this.#tools.length) {
-      (base as Record<string, unknown>)['tools'] = this.#tools.map((t) => ({
-        name: t.name,
-        description: t.description,
-        input_schema: t.inputSchema,
-      }));
-    }
-
-    return base;
   }
 }
 

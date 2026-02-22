@@ -3,14 +3,25 @@
   "version": "0.1.0",
   "description": "AI-First IDE — Nexus Agent IDE, built on Code-OSS/VSCodium",
   "private": true,
+  "main": "./dist/src/extension.js",
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "npm": ">=9.0.0",
+    "vscode": "^1.96.0"
+  },
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      { "command": "nexus.showGraph", "title": "Nexus: Show Architecture Graph" },
+      { "command": "nexus.run",       "title": "Nexus: Run Agent Loop" }
+    ]
   },
   "scripts": {
     "dev": "node build-scripts/dev.mjs",
     "build": "node build-scripts/build.mjs",
+    "build:webview": "node build-scripts/build.mjs",
     "build:agent-ts": "tsc -p agent-ts/tsconfig.json",
+    "compile": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts,.tsx",
@@ -25,14 +36,21 @@
   ],
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/vscode": "^1.109.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.27.3",
     "eslint": "^8.57.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@xyflow/react": "^12.10.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "xstate": "^5.14.0",
     "zod": "^3.23.0"
   }

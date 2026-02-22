@@ -98,11 +98,12 @@ export class AgentToolkit implements IAgentToolkit {
   // ── Private dispatchers ─────────────────────────────────────────────────────
 
   async #contextQuery(input: Record<string, unknown>): Promise<ToolCallResult> {
+    const scope = Array.isArray(input['scope']) ? input['scope'] as readonly string[] : null;
     const result = await this.#ctx.query({
       intent:    String(input['intent'] ?? ''),
-      scope:     Array.isArray(input['scope']) ? input['scope'] as string[] : undefined,
       maxTokens: typeof input['maxTokens'] === 'number' ? input['maxTokens'] : 3000,
       topK:      typeof input['topK'] === 'number' ? input['topK'] : 5,
+      ...(scope ? { scope } : {}),
     });
     return ok('context_query', result);
   }

@@ -9,13 +9,13 @@
 
 import { fromPromise } from 'xstate';
 import { createNexusAgents } from '../src/core/NexusAgentFactory.js';
-import type { AgentResult } from '../core/orchestrator.types.js';
-import type { Artifact } from '../core/orchestrator.types.js';
+import type { AgentResult, AgentRole, Artifact } from '../core/orchestrator.types.js';
 
 interface ArchitectActorInput {
   readonly taskId: string;
   readonly intent: string;
   readonly artifacts: readonly Artifact[];
+  readonly role: AgentRole;
 }
 
 export const runArchitect = fromPromise<AgentResult, ArchitectActorInput>(

@@ -10,12 +10,13 @@
 
 import { fromPromise } from 'xstate';
 import { createNexusAgents } from '../src/core/NexusAgentFactory.js';
-import type { AgentResult, Artifact } from '../core/orchestrator.types.js';
+import type { AgentResult, AgentRole, Artifact } from "../core/orchestrator.types.js";
 
 interface ReviewerActorInput {
   readonly taskId: string;
   readonly intent: string;
   readonly artifacts: readonly Artifact[];
+  readonly role: AgentRole;
 }
 
 export const runReviewer = fromPromise<AgentResult, ReviewerActorInput>(

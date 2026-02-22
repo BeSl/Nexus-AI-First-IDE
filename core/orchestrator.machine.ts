@@ -34,7 +34,7 @@ export type OrchestratorEvent =
 
 // ── Actor input shapes ────────────────────────────────────────────────────────
 
-interface AgentActorInput {
+export interface AgentActorInput {
   taskId: string;
   intent: string;
   artifacts: readonly Artifact[];

@@ -75,8 +75,8 @@ export class ErrorAnalyzer implements IErrorAnalyzer {
                 line: Number(m[2]),
                 column: Number(m[3]),
                 severity: m[4] as 'error' | 'warning',
-                code: m[5]?.trim(),
                 message: m[6]!.trim(),
+                ...(m[5] ? { code: m[5].trim() } : {}),
               }
             : {
                 file: m[1]!.trim(),
