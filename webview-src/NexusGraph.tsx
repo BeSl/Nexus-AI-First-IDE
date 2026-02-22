@@ -1,106 +1,100 @@
 /**
- * NexusGraph — XState Orchestrator Visualizer (React Flow)
+ * NexusGraph — Nexus Pipeline Visualizer (React Flow)
  *
- * Renders the Nexus Loop pipeline as an interactive DAG.
- * Current state is highlighted; progress bars show agent status.
+ * Shows each agent as a card node. Active edge animates.
+ * MiniMap in corner for navigation. Header shows current task intent.
  *
- * @security No eval — all data from postMessage is structural only.
+ * @security No eval — all data flows via postMessage structural objects.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  ReactFlow,
-  Background,
-  Controls,
-  type Node,
-  type Edge,
-  MarkerType,
+  ReactFlow, Background, Controls, MiniMap,
+  type Node, type Edge, MarkerType, BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { AgentProgress, ExtensionMessage, NexusState } from './protocol.js';
+import type { ExtensionMessage, NexusState } from './protocol.js';
 import { vscodeApi } from './vscodeApi.js';
+import { AgentNode, type NodeStatus } from './AgentNode.js';
 
-// ── Static DAG layout ─────────────────────────────────────────────────────────
+// ── Static config ─────────────────────────────────────────────────────────────
 
-const STATE_ORDER = ['idle', 'architect', 'awaitingApproval', 'coder', 'reviewer', 'tester', 'done'] as const;
-const TERMINAL = ['failed', 'cancelled'] as const;
+const nodeTypes = { agent: AgentNode };
 
-const LABELS: Record<string, string> = {
-  idle: 'Idle', architect: 'Architect', awaitingApproval: 'Awaiting\nApproval',
-  coder: 'Coder', reviewer: 'Reviewer', tester: 'Tester',
-  done: 'Done ✓', failed: 'Failed ✗', cancelled: 'Cancelled',
-};
+const PIPELINE = [
+  { id: 'idle',             labelRu: 'Старт',         icon: '🚀', x: 0    },
+  { id: 'architect',        labelRu: 'Архитектор',    icon: '🏗',  x: 210  },
+  { id: 'awaitingApproval', labelRu: 'Согласование',  icon: '✋',  x: 420  },
+  { id: 'coder',            labelRu: 'Кодер',         icon: '💻', x: 630  },
+  { id: 'reviewer',         labelRu: 'Ревьюер',       icon: '🔍', x: 840  },
+  { id: 'tester',           labelRu: 'Тестер',        icon: '🧪', x: 1050 },
+  { id: 'done',             labelRu: 'Готово',        icon: '🎉', x: 1260 },
+] as const;
 
-function nodeColor(id: string, current: string): string {
-  if (id === current) return 'var(--vscode-button-background, #0078d4)';
-  if (id === 'done' && current === 'done') return '#2ea043';
-  if (id === 'failed' && current === 'failed') return '#da3633';
-  return '#3c3c3c';
+const SPECIAL = [
+  { id: 'failed',    labelRu: 'Ошибка',   icon: '💥', x: 630, y: 210 },
+  { id: 'cancelled', labelRu: 'Отменено', icon: '⛔', x: 420, y: 210 },
+] as const;
+
+const PIPELINE_ORDER = PIPELINE.map((n) => n.id);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function resolveStatus(id: string, state: NexusState | null): NodeStatus {
+  const cur = state?.currentState ?? 'idle';
+  if (id === cur) return id === 'failed' || id === 'cancelled' ? 'failed' : id === 'done' ? 'done' : 'active';
+  if (id === 'failed' || id === 'cancelled') return 'pending';
+  const prog = state?.progress?.find((p) => p.role === id);
+  if (prog?.status === 'done')   return 'done';
+  if (prog?.status === 'active') return 'active';
+  if (prog?.status === 'failed') return 'failed';
+  const ci = PIPELINE_ORDER.indexOf(cur as typeof PIPELINE_ORDER[number]);
+  const ni = PIPELINE_ORDER.indexOf(id as typeof PIPELINE_ORDER[number]);
+  return ni >= 0 && ci >= 0 && ni < ci ? 'done' : 'pending';
 }
 
-function buildNodes(currentState: string): Node[] {
-  const main: Node[] = STATE_ORDER.map((id, i) => ({
-    id,
-    position: { x: i * 170, y: 100 },
-    data: { label: LABELS[id] ?? id },
-    style: {
-      background: nodeColor(id, currentState),
-      color: '#fff', borderRadius: 6, padding: '8px 14px',
-      border: id === currentState ? '2px solid #fff' : '1px solid #555',
-      fontSize: 12, whiteSpace: 'pre',
-    },
+function buildNodes(state: NexusState | null): Node[] {
+  const durationMap = new Map(state?.progress?.map((p) => [p.role, p.durationMs]));
+  const mainNodes: Node[] = PIPELINE.map((n) => ({
+    id: n.id, type: 'agent',
+    position: { x: n.x, y: 0 },
+    data: { labelRu: n.labelRu, icon: n.icon, status: resolveStatus(n.id, state), durationMs: durationMap.get(n.id as never) },
   }));
-  return [
-    ...main,
-    { id: 'failed', position: { x: 4 * 170, y: 240 }, data: { label: LABELS.failed },
-      style: { background: nodeColor('failed', currentState), color: '#fff', borderRadius: 6,
-        padding: '8px 14px', border: '1px solid #555', fontSize: 12 } },
-    { id: 'cancelled', position: { x: 2 * 170, y: 240 }, data: { label: LABELS.cancelled },
-      style: { background: nodeColor('cancelled', currentState), color: '#fff', borderRadius: 6,
-        padding: '8px 14px', border: '1px solid #555', fontSize: 12 } },
+  const specialNodes: Node[] = SPECIAL.map((n) => ({
+    id: n.id, type: 'agent',
+    position: { x: n.x, y: n.y },
+    data: { labelRu: n.labelRu, icon: n.icon, status: n.id === state?.currentState ? 'failed' : 'pending' },
+  }));
+  return [...mainNodes, ...specialNodes];
+}
+
+function buildEdges(state: NexusState | null): Edge[] {
+  const cur = state?.currentState ?? 'idle';
+  const mk = { markerEnd: { type: MarkerType.ArrowClosed } };
+
+  const main: Edge[] = PIPELINE.slice(0, -1).map((n, i) => ({
+    id: `${n.id}->${PIPELINE[i + 1]!.id}`, source: n.id, target: PIPELINE[i + 1]!.id,
+    ...mk, animated: cur === n.id,
+    style: { stroke: cur === n.id ? '#007acc' : '#444' },
+  }));
+
+  const errors: Edge[] = ['architect', 'coder', 'reviewer', 'tester'].flatMap((s) => [
+    { id: `${s}->failed`,    source: s, target: 'failed',    ...mk, style: { stroke: '#333', strokeDasharray: '4 3' } },
+    { id: `${s}->cancelled`, source: s, target: 'cancelled', ...mk, style: { stroke: '#333', strokeDasharray: '4 3' } },
+  ]);
+
+  return [...main, ...errors,
+    { id: 'await->idle', source: 'awaitingApproval', target: 'idle',
+      label: 'отклонено', ...mk, style: { stroke: '#444', strokeDasharray: '4 3' } },
   ];
 }
 
-const EDGES: Edge[] = [
-  ...STATE_ORDER.slice(0, -1).map((s, i) => ({
-    id: `${s}->${STATE_ORDER[i + 1]}`, source: s, target: STATE_ORDER[i + 1]!,
-    markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#888' },
-  })),
-  { id: 'await->idle', source: 'awaitingApproval', target: 'idle', label: 'reject',
-    style: { stroke: '#888' }, markerEnd: { type: MarkerType.ArrowClosed } },
-  ...['architect', 'coder', 'reviewer', 'tester'].map((s) => ({
-    id: `${s}->failed`, source: s, target: 'failed',
-    style: { stroke: '#555', strokeDasharray: '4' }, markerEnd: { type: MarkerType.ArrowClosed },
-  })),
-  ...['architect', 'coder', 'reviewer', 'tester'].map((s) => ({
-    id: `${s}->cancelled`, source: s, target: 'cancelled',
-    style: { stroke: '#555', strokeDasharray: '4' }, markerEnd: { type: MarkerType.ArrowClosed },
-  })),
-];
+// ── State label map ───────────────────────────────────────────────────────────
 
-// ── Progress sidebar ──────────────────────────────────────────────────────────
-
-function ProgressBar({ progress }: { readonly progress: readonly AgentProgress[] }) {
-  if (progress.length === 0) return null;
-  return (
-    <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 10,
-      background: 'rgba(30,30,30,0.9)', padding: 12, borderRadius: 6, minWidth: 160 }}>
-      <div style={{ color: '#ccc', fontSize: 11, marginBottom: 6 }}>Agent Progress</div>
-      {progress.map((p) => (
-        <div key={p.role} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <span style={{ fontSize: 10, color: '#999', width: 70 }}>{p.role}</span>
-          <span style={{ fontSize: 10, color: STATUS_COLOR[p.status] }}>{p.status}</span>
-          {p.durationMs != null && (
-            <span style={{ fontSize: 9, color: '#555' }}>{p.durationMs}ms</span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  pending: '#666', active: '#0078d4', done: '#2ea043', failed: '#da3633',
+const STATE_LABELS: Record<string, string> = {
+  idle: 'Ожидание', architect: 'Архитектор', awaitingApproval: 'Согласование',
+  coder: 'Кодер', reviewer: 'Ревьюер', tester: 'Тестер',
+  done: 'Готово ✓', failed: 'Ошибка ✗', cancelled: 'Отменено',
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -109,39 +103,59 @@ export function NexusGraph() {
   const [nexusState, setNexusState] = useState<NexusState | null>(null);
 
   useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      const msg = event.data as ExtensionMessage;
-      if (msg.type === 'orchestrator:state') {
-        setNexusState((msg as { state: NexusState }).state);
-      }
+    const handler = (ev: MessageEvent) => {
+      const msg = ev.data as ExtensionMessage;
+      if (msg.type === 'orchestrator:state') setNexusState((msg as { state: NexusState }).state);
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, []);
 
   const onCancel = useCallback(() => {
-    if (nexusState?.taskId) {
-      vscodeApi.postMessage({ type: 'user:cancel', taskId: nexusState.taskId });
-    }
+    if (nexusState?.taskId) vscodeApi.postMessage({ type: 'user:cancel', taskId: nexusState.taskId });
   }, [nexusState]);
 
-  const currentState = nexusState?.currentState ?? 'idle';
-  const nodes = buildNodes(currentState);
+  const cur = nexusState?.currentState ?? 'idle';
+  const running = cur !== 'idle' && cur !== 'done' && cur !== 'failed' && cur !== 'cancelled';
 
   return (
-    <div style={{ width: '100%', height: '100vh', background: 'var(--vscode-editor-background, #1e1e1e)' }}>
-      <ReactFlow nodes={nodes} edges={EDGES} fitView>
-        <Background color="#333" />
-        <Controls />
-      </ReactFlow>
-      <ProgressBar progress={nexusState?.progress ?? []} />
-      {nexusState && !TERMINAL.includes(nexusState.currentState as typeof TERMINAL[number]) && (
-        <button onClick={onCancel} style={{
-          position: 'absolute', bottom: 16, right: 16, zIndex: 10,
-          background: '#c72e2e', color: '#fff', border: 'none',
-          borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontSize: 12,
-        }}>Cancel</button>
-      )}
+    <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column',
+      background: 'var(--vscode-editor-background, #1e1e1e)' }}>
+
+      {/* Header */}
+      <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--vscode-panel-border, #3c3c3c)',
+        display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, minHeight: 38 }}>
+        <span style={{ fontSize: 10, color: '#555', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>
+          Nexus
+        </span>
+        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10,
+          background: running ? '#007acc1a' : '#3c3c3c', color: running ? '#007acc' : '#777',
+          border: `1px solid ${running ? '#007acc44' : '#444'}` }}>
+          {STATE_LABELS[cur] ?? cur}
+        </span>
+        {nexusState?.intent && (
+          <span style={{ fontSize: 11, color: '#666', overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {nexusState.intent}
+          </span>
+        )}
+        {running && (
+          <button onClick={onCancel} style={{ marginLeft: 'auto', background: '#b91c1c', color: '#fff',
+            border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', fontSize: 11 }}>
+            Отмена
+          </button>
+        )}
+      </div>
+
+      {/* Graph */}
+      <div style={{ flex: 1 }}>
+        <ReactFlow nodes={buildNodes(nexusState)} edges={buildEdges(nexusState)}
+          nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.3 }}>
+          <Background color="#2a2a2a" variant={BackgroundVariant.Dots} />
+          <Controls />
+          <MiniMap nodeColor="#3c3c3c" maskColor="#1a1a1aaa" style={{ background: '#252526' }} />
+        </ReactFlow>
+      </div>
     </div>
   );
 }

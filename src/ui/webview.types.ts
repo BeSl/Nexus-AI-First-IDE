@@ -25,6 +25,7 @@ export interface NexusState {
   readonly taskId: string | null;
   readonly status: TaskStatus;
   readonly progress: readonly AgentProgress[];
+  readonly intent?: string;
 }
 
 export interface AgentProgress {
