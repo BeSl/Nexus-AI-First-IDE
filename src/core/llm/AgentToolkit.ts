@@ -73,14 +73,23 @@ export class AgentToolkit implements IAgentToolkit {
   readonly #ctx: IContextEngine;
   readonly #vec: IVectorIndex;
   readonly #skel: ISkeletonProvider;
+  readonly #extras: readonly IAgentToolkit[];
 
-  constructor(ctx: IContextEngine, vec: IVectorIndex, skel: ISkeletonProvider) {
-    this.#ctx  = ctx;
-    this.#vec  = vec;
-    this.#skel = skel;
+  constructor(
+    ctx: IContextEngine,
+    vec: IVectorIndex,
+    skel: ISkeletonProvider,
+    extras: readonly IAgentToolkit[] = [],
+  ) {
+    this.#ctx    = ctx;
+    this.#vec    = vec;
+    this.#skel   = skel;
+    this.#extras = extras;
   }
 
-  getTools(): readonly MCPTool[] { return TOOLS; }
+  getTools(): readonly MCPTool[] {
+    return [...TOOLS, ...this.#extras.flatMap((e) => e.getTools())];
+  }
 
   async dispatch(name: string, input: Record<string, unknown>): Promise<ToolCallResult> {
     try {
@@ -88,7 +97,10 @@ export class AgentToolkit implements IAgentToolkit {
         case 'context_query':  return await this.#contextQuery(input);
         case 'vector_search':  return await this.#vectorSearch(input);
         case 'read_skeleton':  return await this.#readSkeleton(input);
-        default:               return err(name, `Unknown tool: ${name}`);
+        default: {
+          const extra = this.#extras.find((e) => e.handles?.(name));
+          return extra ? extra.dispatch(name, input) : err(name, `Unknown tool: ${name}`);
+        }
       }
     } catch (e) {
       return err(name, e instanceof Error ? e.message : String(e));

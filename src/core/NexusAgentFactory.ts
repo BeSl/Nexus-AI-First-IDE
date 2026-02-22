@@ -16,6 +16,8 @@ import { ContextEngine } from './context/ContextEngine.js';
 import { TFIDFVectorIndex } from './context/VectorIndex.js';
 import { SkeletonProvider } from './context/SkeletonProvider.js';
 import { NodeFileReader, collectTsFiles } from './context/NodeFileReader.js';
+import { TypeScriptService } from './lsp/TypeScriptService.js';
+import { LspToolProvider } from './lsp/LspToolProvider.js';
 import { ArchitectAgent } from '../../agents/architect/ArchitectAgent.js';
 import { CoderAgent } from '../../agents/coder/CoderAgent.js';
 import { ReviewerAgent } from '../../agents/reviewer/ReviewerAgent.js';
@@ -42,7 +44,8 @@ export function createNexusAgents(apiKey?: string): NexusAgents {
 
   // Each agent needing tools gets its own gateway (registerTools is stateful)
   const mkGateway  = () => new AnthropicGateway(apiKey ? { apiKey } : {});
-  const toolkit    = new AgentToolkit(ctx, vectorIdx, skeleton);
+  const lspToolProvider = new LspToolProvider(new TypeScriptService());
+  const toolkit    = new AgentToolkit(ctx, vectorIdx, skeleton, [lspToolProvider]);
 
   return {
     architect: new ArchitectAgent(mkGateway(), toolkit),

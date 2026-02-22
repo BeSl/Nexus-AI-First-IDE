@@ -30,4 +30,7 @@ export interface IAgentToolkit {
     toolName: string,
     input: Record<string, unknown>
   ): Promise<ToolCallResult>;
+
+  /** Optional: returns true if this provider owns the named tool. Used by AgentToolkit extras. */
+  handles?(toolName: string): boolean;
 }
