@@ -1,7 +1,7 @@
 # Nexus Agent IDE — Development Roadmap
 
 > Last updated: 2026-02-22
-> Current state: **Phase 5 complete** — 263/263 tests, tsc strict clean.
+> Current state: **Phase 9 complete** — 312/312 tests, tsc strict clean.
 
 ---
 
@@ -44,20 +44,46 @@
 - `LspToolProvider` — MCP tool adapter: `ts_diagnostics`, `ts_type_coverage`, `ts_find_export`
 - `AgentToolkit` extras pattern — pluggable tool providers, `handles()` routing
 
+### Phase 6 — VFS → Real FS Committer
+- `WorkspaceCommitter` — writes Artifact[] to workspace via injectable `IWorkspaceFs`
+- Path-traversal guard, `createDirectory` before write, `nodeWorkspaceFs` Node.js adapter
+- `NexusLoop.#onDone()` — QuickPick file selector before writing
+
+### Phase 7 — Shadow Build
+- `runShadowBuild` — in-process TS type-check via `TypeScriptService.getDiagnostics(sourceOverride)`
+- `orchestratorMachine` — new `shadowBuild` state between coder and reviewer
+- Retry loop: Coder receives `buildFeedback` on failure, up to `MAX_RETRIES=3`
+- `OrchestratorContext` + `buildFeedback` + `retryCount` fields
+
+### Phase 8 — Multi-Model Support
+- `OllamaGateway` — local Ollama REST API via Node.js built-in fetch (no SDK)
+  - Tools injected into system prompt as JSON schema
+  - Configurable via `OLLAMA_BASE_URL` / `OLLAMA_MODEL`
+- `GatewayFactory` — `createGateway({ provider })` — `'anthropic' | 'ollama'`
+  - Reads `NEXUS_LLM_PROVIDER` env, opts override; exhaustive switch guard
+- `NexusAgentFactory` — switched to `createGateway()`, model-agnostic agents
+
+### Phase 9 — VFS Tree View Sidebar
+- `NexusVfsProvider` — `TreeDataProvider<VfsFileItem>` for staged Artifact[] display
+- `nexusVfs` activity bar panel with Approve All / Discard All buttons
+- `NexusLoop` refreshes tree after each agent cycle
+- 2 new commands: `nexus.vfs.approveAll`, `nexus.vfs.discardAll`
+
 ---
 
 ## Active Backlog
 
-### Phase 6 — VFS → Real FS Committer
-**Goal:** Write approved agent artifacts from `InMemoryVFS` to the actual project filesystem via VS Code workspace API.
+### Phase 10 — Packaging & Distribution (NEXT)
+**Goal:** Publish to VS Code Marketplace as a one-click installable extension.
 
 Tasks:
-- `src/core/vfs/WorkspaceCommitter.ts` — implements `IVFSCommitter`, uses `vscode.workspace.fs.writeFile()`
-- `src/core/vfs/WorkspaceCommitter.spec.ts` — mock `vscode.workspace.fs` via DI
-- Wire into `NexusLoop.ts`: on `done` state, call `committer.commit(taskId)`
-- Show VS Code file diff before committing (`vscode.commands.executeCommand('vscode.diff', ...)`)
+- `vsce package` → `nexus-agent-ide-0.1.0.vsix`
+- Add `icon.png` (128×128), `publisher` field to `package.json`
+- `.vscodeignore` — exclude `webview-src/`, `build-scripts/`, `*.spec.ts`, `node_modules`
+- GitHub Actions workflow: `.github/workflows/release.yml` — `npm test && vsce publish` on tag push
+- VS Code Marketplace listing copy + screenshots
 
-Acceptance: user sees a diff view, clicks "Commit", files appear in the project tree.
+Acceptance: `ext install nexus-agent-ide` works in any VS Code instance.
 
 ---
 
