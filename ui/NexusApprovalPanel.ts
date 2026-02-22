@@ -1,106 +1,103 @@
+/**
+ * NexusApprovalPanel — VS Code Webview for Architect Plan Approval
+ *
+ * Displays Architect artifacts for user review before code generation.
+ * Sends USER_APPROVED / USER_REJECTED commands to the XState orchestrator.
+ *
+ * @security HTML is generated in the extension process and sanitized.
+ *           No user content is eval'd in the webview.
+ */
+
 import * as vscode from 'vscode';
-import { Artifact } from '../core/orchestrator.types';
+import type { Artifact } from '../core/orchestrator.types.js';
+
+type ApprovalCallback = (approved: boolean) => void;
 
 export class NexusApprovalPanel {
-    public static currentPanel: NexusApprovalPanel | undefined;
-    private readonly _panel: vscode.WebviewPanel;
-    private _disposables: vscode.Disposable[] = [];
+  static currentPanel: NexusApprovalPanel | undefined;
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, artifacts: Artifact[]) {
-        this._panel = panel;
-        this._panel.webview.html = this._getHtmlForWebview(artifacts);
-        
-        // Слушаем сообщения от WebView
-        this._panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'approve':
-                        vscode.window.showInformationMessage('Plan Approved. Starting Coder...');
-                        // Здесь вызываем событие XState: send({ type: 'USER_APPROVED' })
-                        return;
-                    case 'reject':
-                        vscode.window.showWarningMessage('Plan Rejected.');
-                        // Здесь вызываем событие XState: send({ type: 'USER_REJECTED' })
-                        return;
-                }
-            },
-            null,
-            this._disposables
-        );
+  readonly #panel: vscode.WebviewPanel;
+  readonly #disposables: vscode.Disposable[] = [];
+  readonly #onDecision: ApprovalCallback;
+
+  private constructor(
+    panel: vscode.WebviewPanel,
+    artifacts: readonly Artifact[],
+    onDecision: ApprovalCallback,
+  ) {
+    this.#panel = panel;
+    this.#onDecision = onDecision;
+    this.#panel.webview.html = this.#buildHtml(artifacts);
+
+    this.#panel.webview.onDidReceiveMessage(
+      (msg: { command: string }) => {
+        if (msg.command === 'approve') this.#onDecision(true);
+        if (msg.command === 'reject')  this.#onDecision(false);
+        this.#panel.dispose();
+      },
+      null, this.#disposables,
+    );
+
+    this.#panel.onDidDispose(() => this.#dispose(), null, this.#disposables);
+  }
+
+  static createOrShow(
+    extensionUri: vscode.Uri,
+    artifacts: readonly Artifact[],
+    onDecision: ApprovalCallback,
+  ): void {
+    const column = vscode.window.activeTextEditor?.viewColumn;
+    if (NexusApprovalPanel.currentPanel) {
+      NexusApprovalPanel.currentPanel.#panel.reveal(column);
+      return;
     }
+    const panel = vscode.window.createWebviewPanel(
+      'nexusApproval', 'Nexus: Architect Plan',
+      column ?? vscode.ViewColumn.One,
+      { enableScripts: true },
+    );
+    NexusApprovalPanel.currentPanel = new NexusApprovalPanel(panel, artifacts, onDecision);
+  }
 
-    public static createOrShow(extensionUri: vscode.Uri, artifacts: Artifact[]) {
-        const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
+  #dispose(): void {
+    NexusApprovalPanel.currentPanel = undefined;
+    this.#panel.dispose();
+    this.#disposables.forEach((d) => d.dispose());
+  }
 
-        if (NexusApprovalPanel.currentPanel) {
-            NexusApprovalPanel.currentPanel._panel.reveal(column);
-            return;
-        }
+  #buildHtml(artifacts: readonly Artifact[]): string {
+    const cards = artifacts.map((a) => `
+      <div class="card">
+        <div class="hdr"><span class="badge">${esc(a.type.toUpperCase())}</span>
+          <code>${esc(a.path)}</code></div>
+        <pre>${esc(a.content.slice(0, 300))}${a.content.length > 300 ? '\n...' : ''}</pre>
+      </div>`).join('');
 
-        const panel = vscode.window.createWebviewPanel(
-            'nexusApproval',
-            'Nexus: Architect Plan',
-            column || vscode.ViewColumn.One,
-            { enableScripts: true }
-        );
+    return `<!DOCTYPE html><html lang="en"><head><style>
+      body{font-family:var(--vscode-font-family);color:var(--vscode-foreground);padding:20px}
+      .card{border:1px solid var(--vscode-widget-border);border-radius:4px;margin-bottom:12px}
+      .hdr{padding:8px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--vscode-widget-border)}
+      .badge{font-size:10px;padding:2px 6px;border-radius:3px;font-weight:bold;
+             background:var(--vscode-button-background);color:var(--vscode-button-foreground)}
+      pre{margin:0;padding:12px;font-size:12px;background:var(--vscode-textCodeBlock-background);overflow:auto}
+      .actions{position:sticky;bottom:0;padding:16px 0;display:flex;gap:10px;
+               background:var(--vscode-sideBar-background);border-top:1px solid var(--vscode-widget-border)}
+      button{cursor:pointer;padding:8px 16px;border:none;border-radius:2px;font-weight:bold}
+      .ok{background:var(--vscode-button-background);color:var(--vscode-button-foreground)}
+      .no{background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground)}
+    </style></head><body>
+      <h2>Architectural Plan</h2><p>${artifacts.length} artifact(s) from Architect Agent:</p>
+      ${cards}
+      <div class="actions">
+        <button class="ok" onclick="vscode.postMessage({command:'approve'})">Approve &amp; Implement</button>
+        <button class="no" onclick="vscode.postMessage({command:'reject'})">Reject</button>
+      </div>
+      <script>const vscode=acquireVsCodeApi();</script>
+    </body></html>`;
+  }
+}
 
-        NexusApprovalPanel.currentPanel = new NexusApprovalPanel(panel, extensionUri, artifacts);
-    }
-
-    private _getHtmlForWebview(artifacts: Artifact[]) {
-        const artifactCards = artifacts.map(a => `
-            <div class="card">
-                <div class="card-header">
-                    <span class="badge ${a.type}">${a.type.toUpperCase()}</span>
-                    <code class="uri">${a.uri}</code>
-                </div>
-                <div class="card-body">
-                    <p>${a.reason || 'No description provided'}</p>
-                    <pre><code>${this._escapeHtml(a.content.substring(0, 150))}...</code></pre>
-                </div>
-            </div>
-        `).join('');
-
-        return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <style>
-                    body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 20px; }
-                    .card { border: 1px solid var(--vscode-widget-border); border-radius: 4px; margin-bottom: 15px; background: var(--vscode-editor-background); }
-                    .card-header { padding: 8px 12px; border-bottom: 1px solid var(--vscode-widget-border); display: flex; align-items: center; gap: 10px; }
-                    .card-body { padding: 12px; }
-                    .badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: bold; }
-                    .badge.new { background: #28a745; color: white; }
-                    .badge.update { background: #007acc; color: white; }
-                    .uri { color: var(--vscode-symbolIcon-propertyForeground); font-weight: bold; }
-                    pre { background: var(--vscode-textCodeBlock-background); padding: 10px; border-radius: 4px; font-size: 12px; overflow: hidden; }
-                    .actions { position: sticky; bottom: 0; background: var(--vscode-sideBar-background); padding: 20px 0; display: flex; gap: 10px; border-top: 1px solid var(--vscode-widget-border); }
-                    button { cursor: pointer; padding: 8px 16px; border: none; border-radius: 2px; font-weight: bold; }
-                    .btn-approve { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
-                    .btn-approve:hover { background: var(--vscode-button-hoverBackground); }
-                    .btn-reject { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
-                </style>
-            </head>
-            <body>
-                <h1>Architectural Plan</h1>
-                <p>Review the artifacts generated by the Architect Agent:</p>
-                ${artifactCards}
-                <div class="actions">
-                    <button class="btn-approve" onclick="approve()">Approve & Implement</button>
-                    <button class="btn-reject" onclick="reject()">Reject Plan</button>
-                </div>
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    function approve() { vscode.postMessage({ command: 'approve' }); }
-                    function reject() { vscode.postMessage({ command: 'reject' }); }
-                </script>
-            </body>
-            </html>
-        `;
-    }
-
-    private _escapeHtml(unsafe: string) {
-        return unsafe.replace(/[&<"']/g, m => ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#39;' }[m] || m));
-    }
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c));
 }

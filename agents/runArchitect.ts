@@ -1,50 +1,37 @@
-// agents/runArchitect.ts
+/**
+ * runArchitect — XState fromPromise actor
+ *
+ * Adapts ArchitectAgent into the XState actor interface expected
+ * by orchestratorMachine. Injected via machine.provide().
+ *
+ * @security Never reads ANTHROPIC_API_KEY directly — delegates to NexusAgentFactory.
+ */
+
 import { fromPromise } from 'xstate';
-import { ARCHITECT_SYSTEM_PROMPT } from './prompts';
-import { SkeletonProvider } from '../core/context/SkeletonProvider';
-// Импортируй свой LLM gateway
-import { AnthropicGateway } from '../core/llm/AnthropicGateway'; 
+import { createNexusAgents } from '../src/core/NexusAgentFactory.js';
+import type { AgentResult } from '../core/orchestrator.types.js';
+import type { Artifact } from '../core/orchestrator.types.js';
 
-export const runArchitect = fromPromise(async ({ input }: { input: any }) => {
-  const { intent, taskId } = input;
-  
-  const skeletonProvider = new SkeletonProvider();
-  const llm = new AnthropicGateway();
+interface ArchitectActorInput {
+  readonly taskId: string;
+  readonly intent: string;
+  readonly artifacts: readonly Artifact[];
+}
 
-  // 1. Получаем контекст проекта (скелеты)
-  const projectContextMap = await skeletonProvider.fromDirectory('./src', { recursive: true });
-  const contextSnapshot = Array.from(projectContextMap.values())
-    .map(s => `File: ${s.uri}\n${s.skeleton}`)
-    .join('\n\n');
+export const runArchitect = fromPromise<AgentResult, ArchitectActorInput>(
+  async ({ input }) => {
+    const start = Date.now();
+    const agents = createNexusAgents();
 
-  // 2. Формируем запрос
-  const response = await llm.complete({
-    system: ARCHITECT_SYSTEM_PROMPT,
-    messages: [
-      { 
-        role: 'user', 
-        content: `Project Context:\n${contextSnapshot}\n\nUser Intent: ${intent}` 
-      }
-    ],
-    // Важно: просим LLM возвращать JSON
-    response_format: { type: 'json_object' } 
-  });
+    const parsedIntent = await agents.architect.parseIntent(input.intent);
+    const output = await agents.architect.designModules(parsedIntent);
 
-  // 3. Парсим результат
-  try {
-    const result = JSON.parse(response.content);
-    
-    // Возвращаем данные в формате AgentResult для XState
     return {
-      taskId,
-      role: 'architect',
-      message: result.plan,
-      artifacts: result.artifacts.map((a: any) => ({
-        ...a,
-        status: 'pending' // Все артефакты архитектора требуют апрува
-      }))
+      taskId: input.taskId,
+      agentId: output.agentId,
+      output,
+      artifacts: output.artifacts,
+      duration: Date.now() - start,
     };
-  } catch (error) {
-    throw new Error(`Architect failed to generate valid JSON: ${error}`);
-  }
-});
+  },
+);

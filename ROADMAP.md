@@ -104,13 +104,27 @@
 
 - [ ] Шаблоны (Blueprints) для React Native, Electron и Backend (Node/Bun)
 
-### 4.2. Security Layer
+### 4.2. Security Layer ✅
 
-- [ ] Автоматический аудит безопасности (SAST) для каждой итерации кода
+- [x] **SastRunner** — SAST через NexusLinter перед Reviewer (11/11 тестов)
+- [x] **NexusAgentFactory** — DI-сборка всех агентов + `indexProject()` для pre-indexing
+- [x] **NodeFileReader** + `collectTsFiles()` — production IFileReader с glob
 
-### 4.3. Plugin System
+### 4.3. Plugin System ✅
 
-- [ ] API для создания кастомных агентов под специфические нужды Enterprise
+- [x] **plugin.types.ts** — `IAgentPlugin`, `PluginManifest`, `PluginActorInput`
+- [x] **PluginRegistry** — регистрация кастомных агентов по слотам (reviewer/tester/post-tester), semver-валидация (13/13 тестов)
+
+### XState Actor Runners ✅
+
+- [x] **runArchitect.ts** — исправлен, использует ArchitectAgent через NexusAgentFactory
+- [x] **runCoder.ts** — CoderAgent actor с retry + buildFeedback
+- [x] **runReviewer.ts** — ReviewerAgent actor, бросает Error при critical violations
+- [x] **runTester.ts** — TesterAgent actor
+
+### UI ✅
+
+- [x] **NexusApprovalPanel.ts** — исправлен (Artifact.path вместо uri, callback-based API)
 
 ---
 
@@ -158,7 +172,9 @@
 | `agent-ts/NexusLinter`             | 20/20 | ✅ реализован |
 | `agent-ts/ContractValidator`       | 11/11 | ✅ реализован |
 | `src/ui/OrchestratorBridge`        | 13/13 | ✅ реализован |
-| **Итого**                          | **204/204** | ✅        |
+| `src/core/security/SastRunner`     | 11/11 | ✅ реализован |
+| `src/core/plugins/PluginRegistry`  | 13/13 | ✅ реализован |
+| **Итого**                          | **228/228** | ✅        |
 
 План развития: От инфраструктуры к Интеллекту
 1. Реализация конкретных Агентов (Personas)
