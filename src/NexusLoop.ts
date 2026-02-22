@@ -11,11 +11,12 @@
 import * as vscode from 'vscode';
 import { createActor, type Actor } from 'xstate';
 import { orchestratorMachine, type OrchestratorContext } from '../core/orchestrator.machine.js';
-import { runArchitect } from '../agents/runArchitect.js';
-import { runCoder } from '../agents/runCoder.js';
+import { createRunArchitect } from '../agents/runArchitect.js';
+import { createRunCoder } from '../agents/runCoder.js';
 import { runShadowBuild } from '../agents/runShadowBuild.js';
-import { runReviewer } from '../agents/runReviewer.js';
-import { runTester } from '../agents/runTester.js';
+import { createRunReviewer } from '../agents/runReviewer.js';
+import { createRunTester } from '../agents/runTester.js';
+import { readGatewayOptions } from './NexusConfig.js';
 import { WorkspaceCommitter, nodeWorkspaceFs } from './core/vfs/WorkspaceCommitter.js';
 import { NexusGraphPanel } from '../ui/NexusGraphPanel.js';
 import { NexusApprovalPanel } from '../ui/NexusApprovalPanel.js';
@@ -73,8 +74,15 @@ export class NexusLoop {
 
   start(intent: string): void {
     const taskId = `nexus-${Date.now()}`;
+    const opts = readGatewayOptions();
     const machine = orchestratorMachine.provide({
-      actors: { runArchitect, runCoder, runShadowBuild, runReviewer, runTester },
+      actors: {
+        runArchitect: createRunArchitect(opts),
+        runCoder:     createRunCoder(opts),
+        runShadowBuild,
+        runReviewer:  createRunReviewer(opts),
+        runTester:    createRunTester(opts),
+      },
     });
 
     this.#actor = createActor(machine, { input: { taskId, intent } });

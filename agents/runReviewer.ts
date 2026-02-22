@@ -10,7 +10,8 @@
 
 import { fromPromise } from 'xstate';
 import { createNexusAgents } from '../src/core/NexusAgentFactory.js';
-import type { AgentResult, AgentRole, Artifact } from "../core/orchestrator.types.js";
+import type { NexusAgentsOptions } from '../src/core/NexusAgentFactory.js';
+import type { AgentResult, AgentRole, Artifact } from '../core/orchestrator.types.js';
 
 interface ReviewerActorInput {
   readonly taskId: string;
@@ -19,10 +20,11 @@ interface ReviewerActorInput {
   readonly role: AgentRole;
 }
 
-export const runReviewer = fromPromise<AgentResult, ReviewerActorInput>(
-  async ({ input }) => {
+/** Factory: create a runReviewer actor bound to the given gateway options. */
+export function createRunReviewer(opts: NexusAgentsOptions = {}) {
+  return fromPromise<AgentResult, ReviewerActorInput>(async ({ input }) => {
     const start = Date.now();
-    const agents = createNexusAgents();
+    const agents = createNexusAgents(opts);
 
     const codeArtifacts = input.artifacts.filter(
       (a) => a.type === 'code' || a.type === 'file',
@@ -45,5 +47,8 @@ export const runReviewer = fromPromise<AgentResult, ReviewerActorInput>(
       artifacts: [],   // reviewer produces no new artifacts
       duration: Date.now() - start,
     };
-  },
-);
+  });
+}
+
+/** Default actor (reads from env variables). Used in tests and legacy wiring. */
+export const runReviewer = createRunReviewer();

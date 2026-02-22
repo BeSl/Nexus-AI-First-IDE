@@ -10,6 +10,7 @@
 
 import { fromPromise } from 'xstate';
 import { createNexusAgents } from '../src/core/NexusAgentFactory.js';
+import type { NexusAgentsOptions } from '../src/core/NexusAgentFactory.js';
 import type { AgentResult, AgentRole, Artifact } from '../core/orchestrator.types.js';
 import type { ArchitectOutput } from './architect/architect.types.js';
 
@@ -23,10 +24,11 @@ interface CoderActorInput {
   readonly retryCount?: number;
 }
 
-export const runCoder = fromPromise<AgentResult, CoderActorInput>(
-  async ({ input }) => {
+/** Factory: create a runCoder actor bound to the given gateway options. */
+export function createRunCoder(opts: NexusAgentsOptions = {}) {
+  return fromPromise<AgentResult, CoderActorInput>(async ({ input }) => {
     const start = Date.now();
-    const agents = createNexusAgents();
+    const agents = createNexusAgents(opts);
 
     // Reconstruct ArchitectOutput from artifacts in context
     const architectOutput: ArchitectOutput = {
@@ -53,5 +55,8 @@ export const runCoder = fromPromise<AgentResult, CoderActorInput>(
       artifacts: output.artifacts,
       duration: Date.now() - start,
     };
-  },
-);
+  });
+}
+
+/** Default actor (reads from env variables). Used in tests and legacy wiring. */
+export const runCoder = createRunCoder();

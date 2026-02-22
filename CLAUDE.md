@@ -74,3 +74,13 @@ Next Step: Implement the ArchitectureGraph component using React Flow in a VS Co
 - **Reference Tracking:** Before making changes, the agent MUST call `getRelevantContext` to identify side effects.
 - **No Global Scans:** Avoid `grep`-like operations on the whole project. Use the Semantic Index.
 **Strategic Goal:** Project Nexus is being built as a potential acquisition/partnership target for Google. Every line of code must follow Enterprise-grade patterns: Type-safety, Hexagonal Architecture, and Deterministic Orchestration (XState).
+
+## Git Workflow & Release Rules
+You must strictly follow this branching strategy for all development:
+
+1. **Never commit directly to `main`:** The `main` branch is our single source of truth and must always be stable (green CI).
+2. **Feature Branches:** All new development (features, refactoring, bug fixes) must happen in a dedicated branch created from `main`.
+   - Naming convention: `feat/feature-name`, `fix/bug-name`, `refactor/module-name`.
+3. **Atomic Commits:** Make small, logical commits with clear, descriptive messages (e.g., `feat(ui): add NexusApprovalPanel webview`).
+4. **Pull Requests (PRs):** Once a feature is complete and all tests pass locally (`npm test`), we merge it into `main` via a Pull Request (or simulated PR merge if working locally).
+5. **Releases:** Releases are cut from `main` after successful integration and testing.

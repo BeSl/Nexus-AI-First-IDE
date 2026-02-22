@@ -7,6 +7,7 @@ on:
     branches: [main]
 
 jobs:
+  # ── Tests — run on both PRs and main pushes ──────────────────────────────────
   test:
     name: Test (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
@@ -31,3 +32,39 @@ jobs:
 
       - name: Type-check
         run: npx tsc --noEmit -p tsconfig.json
+
+  # ── Build VSIX — only on push to main (not on PRs) ──────────────────────────
+  package:
+    name: Build VSIX (dev snapshot)
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run compile
+
+      - name: Build webview bundle
+        run: npm run build
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Upload dev snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # Name includes SHA so each commit has its own artifact
+          name: nexus-agent-ide-dev-${{ github.sha }}
+          path: '*.vsix'
+          retention-days: 14

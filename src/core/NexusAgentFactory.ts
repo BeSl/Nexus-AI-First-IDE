@@ -33,6 +33,12 @@ export interface NexusAgentsOptions {
   readonly provider?: LlmProvider;
   /** Anthropic API key override (default: ANTHROPIC_API_KEY env) */
   readonly anthropicApiKey?: string;
+  /** Google Gemini API key override (default: GEMINI_API_KEY env) */
+  readonly geminiApiKey?: string;
+  /** Ollama base URL override (default: OLLAMA_BASE_URL env) */
+  readonly ollamaBaseUrl?: string;
+  /** Model name override (default: provider's built-in default) */
+  readonly model?: string;
 }
 
 export interface NexusAgents {
@@ -52,8 +58,11 @@ export function createNexusAgents(opts: NexusAgentsOptions = {}): NexusAgents {
 
   // Each agent needing tools gets its own gateway (registerTools is stateful)
   const mkGateway  = () => createGateway({
-    ...(opts.provider ? { provider: opts.provider } : {}),
+    ...(opts.provider        ? { provider: opts.provider }               : {}),
     ...(opts.anthropicApiKey ? { anthropicApiKey: opts.anthropicApiKey } : {}),
+    ...(opts.geminiApiKey    ? { geminiApiKey: opts.geminiApiKey }       : {}),
+    ...(opts.ollamaBaseUrl   ? { ollamaBaseUrl: opts.ollamaBaseUrl }     : {}),
+    ...(opts.model           ? { model: opts.model }                     : {}),
   });
   const lspToolProvider = new LspToolProvider(new TypeScriptService());
   const toolkit    = new AgentToolkit(ctx, vectorIdx, skeleton, [lspToolProvider]);

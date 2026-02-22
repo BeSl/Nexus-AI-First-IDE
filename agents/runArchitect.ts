@@ -9,6 +9,7 @@
 
 import { fromPromise } from 'xstate';
 import { createNexusAgents } from '../src/core/NexusAgentFactory.js';
+import type { NexusAgentsOptions } from '../src/core/NexusAgentFactory.js';
 import type { AgentResult, AgentRole, Artifact } from '../core/orchestrator.types.js';
 
 interface ArchitectActorInput {
@@ -18,10 +19,11 @@ interface ArchitectActorInput {
   readonly role: AgentRole;
 }
 
-export const runArchitect = fromPromise<AgentResult, ArchitectActorInput>(
-  async ({ input }) => {
+/** Factory: create a runArchitect actor bound to the given gateway options. */
+export function createRunArchitect(opts: NexusAgentsOptions = {}) {
+  return fromPromise<AgentResult, ArchitectActorInput>(async ({ input }) => {
     const start = Date.now();
-    const agents = createNexusAgents();
+    const agents = createNexusAgents(opts);
 
     const parsedIntent = await agents.architect.parseIntent(input.intent);
     const output = await agents.architect.designModules(parsedIntent);
@@ -33,5 +35,8 @@ export const runArchitect = fromPromise<AgentResult, ArchitectActorInput>(
       artifacts: output.artifacts,
       duration: Date.now() - start,
     };
-  },
-);
+  });
+}
+
+/** Default actor (reads from env variables). Used in tests and legacy wiring. */
+export const runArchitect = createRunArchitect();

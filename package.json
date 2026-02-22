@@ -25,19 +25,28 @@
     "commands": [
       {
         "command": "nexus.showGraph",
-        "title": "Nexus: Show Architecture Graph"
+        "title": "Nexus: Show Architecture Graph",
+        "icon": "$(type-hierarchy-super)"
       },
       {
         "command": "nexus.run",
-        "title": "Nexus: Run Agent Loop"
+        "title": "Nexus: Run Agent Loop",
+        "icon": "$(play)"
+      },
+      {
+        "command": "nexus.openSettings",
+        "title": "Nexus: Open Settings",
+        "icon": "$(gear)"
       },
       {
         "command": "nexus.vfs.approveAll",
-        "title": "Nexus: Approve All Staged Files"
+        "title": "Nexus: Approve All Staged Files",
+        "icon": "$(check)"
       },
       {
         "command": "nexus.vfs.discardAll",
-        "title": "Nexus: Discard All Staged Files"
+        "title": "Nexus: Discard All Staged Files",
+        "icon": "$(trash)"
       }
     ],
     "viewsContainers": {
@@ -52,6 +61,11 @@
     "views": {
       "nexusExplorer": [
         {
+          "id": "nexusStatus",
+          "name": "Configuration",
+          "when": "true"
+        },
+        {
           "id": "nexusVfs",
           "name": "Staged Files",
           "when": "true"
@@ -61,16 +75,62 @@
     "menus": {
       "view/title": [
         {
+          "command": "nexus.run",
+          "when": "view == nexusStatus",
+          "group": "navigation@1"
+        },
+        {
+          "command": "nexus.openSettings",
+          "when": "view == nexusStatus",
+          "group": "navigation@2"
+        },
+        {
           "command": "nexus.vfs.approveAll",
           "when": "view == nexusVfs",
-          "group": "navigation"
+          "group": "navigation@1"
         },
         {
           "command": "nexus.vfs.discardAll",
           "when": "view == nexusVfs",
-          "group": "navigation"
+          "group": "navigation@2"
         }
       ]
+    },
+    "configuration": {
+      "title": "Nexus Agent IDE",
+      "properties": {
+        "nexus.llm.provider": {
+          "type": "string",
+          "enum": ["anthropic", "gemini", "ollama"],
+          "enumDescriptions": [
+            "Claude via Anthropic API (cloud, default)",
+            "Google Gemini REST API (cloud)",
+            "Local Ollama server (offline, no API key needed)"
+          ],
+          "default": "anthropic",
+          "description": "AI provider used for all agent calls."
+        },
+        "nexus.llm.model": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Model override. Leave empty to use the provider default.\n\nExamples: `claude-sonnet-4-6`, `gemini-2.0-flash`, `codellama`"
+        },
+        "nexus.llm.anthropic.apiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Anthropic API key (`sk-ant-...`). Get one at [console.anthropic.com](https://console.anthropic.com).\n\nAlternatively set the `ANTHROPIC_API_KEY` environment variable."
+        },
+        "nexus.llm.gemini.apiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Google Gemini API key. Get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).\n\nAlternatively set the `GEMINI_API_KEY` environment variable."
+        },
+        "nexus.llm.ollama.baseUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama server base URL. Change if Ollama is running on a different port or host."
+        }
+      }
     }
   },
   "scripts": {

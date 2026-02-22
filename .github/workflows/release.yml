@@ -1,5 +1,6 @@
 name: Release
 
+# Triggered by a version tag: git tag v0.2.0 && git push --tags
 on:
   push:
     tags:
@@ -9,6 +10,8 @@ jobs:
   release:
     name: Package & Publish
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # required for gh release create
 
     steps:
       - uses: actions/checkout@v4
@@ -22,18 +25,39 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Sync package.json version from the git tag (v1.2.3 → 1.2.3)
+      - name: Sync version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm version "$VERSION" --no-git-tag-version
+          echo "Building version $VERSION"
+
       - name: Run tests
         run: npm test
+
+      - name: Type-check
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Compile TypeScript
+        run: npm run compile
+
+      - name: Build webview bundle
+        run: npm run build
 
       - name: Package extension
         run: npm run package
 
-      - name: Upload .vsix artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nexus-agent-ide-${{ github.ref_name }}.vsix
-          path: '*.vsix'
+      # Upload .vsix as a GitHub Release with auto-generated release notes
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Nexus Agent IDE $GITHUB_REF_NAME" \
+            --generate-notes \
+            *.vsix
 
+      # Publish to Open VSX Registry (optional — only if secret is set)
       - name: Publish to Open VSX Registry
         if: env.OPEN_VSX_TOKEN != ''
         env:
