@@ -13,7 +13,6 @@ import type { Artifact } from '../../core/orchestrator.types.js';
 import type { ICoderAgent, CoderInput, CoderOutput } from './coder.types.js';
 import { CODER_SYSTEM_PROMPT, CODER_RETRY_PROMPT } from './prompts.js';
 
-const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 8192;
 
 export class CoderAgent implements ICoderAgent {
@@ -33,7 +32,7 @@ export class CoderAgent implements ICoderAgent {
 
     const response = await this.#gateway.complete(
       [{ role: 'user', content: userContent }],
-      { system, model: MODEL, maxTokens: MAX_TOKENS },
+      { system, maxTokens: MAX_TOKENS },
     );
 
     const fileSpecs = this.#parseFileSpecs(response.content);

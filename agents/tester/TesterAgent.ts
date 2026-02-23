@@ -12,7 +12,6 @@ import type { Artifact } from '../../core/orchestrator.types.js';
 import type { ITesterAgent, TesterOutput, TestFile } from './tester.types.js';
 import { TESTER_SYSTEM_PROMPT } from './prompts.js';
 
-const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 8192;
 
 export class TesterAgent implements ITesterAgent {
@@ -34,7 +33,7 @@ export class TesterAgent implements ITesterAgent {
 
     const response = await this.#gateway.complete(
       [{ role: 'user', content: `Generate Vitest tests for:\n\n${codeBlock}` }],
-      { system: TESTER_SYSTEM_PROMPT, model: MODEL, maxTokens: MAX_TOKENS },
+      { system: TESTER_SYSTEM_PROMPT, maxTokens: MAX_TOKENS },
     );
 
     const testFiles = this.#parseTestFiles(response.content);

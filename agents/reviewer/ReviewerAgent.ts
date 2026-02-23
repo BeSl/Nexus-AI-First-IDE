@@ -12,7 +12,6 @@ import type { Artifact } from '../../core/orchestrator.types.js';
 import type { IReviewerAgent, ReviewResult, Violation } from './reviewer.types.js';
 import { REVIEWER_SYSTEM_PROMPT } from './prompts.js';
 
-const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 4096;
 /** Files longer than this trigger NEXUS-005 automatically (no LLM call needed) */
 const MAX_LINES = 150;
@@ -34,7 +33,7 @@ export class ReviewerAgent implements IReviewerAgent {
 
     const response = await this.#gateway.complete(
       [{ role: 'user', content: `Review these TypeScript files:\n\n${codeBlock}` }],
-      { system: REVIEWER_SYSTEM_PROMPT, model: MODEL, maxTokens: MAX_TOKENS },
+      { system: REVIEWER_SYSTEM_PROMPT, maxTokens: MAX_TOKENS },
     );
 
     const llmResult = this.#parseResult(response.content, taskId);

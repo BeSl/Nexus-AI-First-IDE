@@ -21,7 +21,6 @@ import type { AgentId } from '../../core/orchestrator.types.js';
 import { ARCHITECT_SYSTEM_PROMPT } from './prompts.js';
 
 const AGENT_ID = 'architect-v1' as unknown as AgentId;
-const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 4096;
 
 export class ArchitectAgent implements IArchitectAgent {
@@ -37,7 +36,7 @@ export class ArchitectAgent implements IArchitectAgent {
   async parseIntent(raw: string): Promise<ParsedIntent> {
     const response = await this.#gateway.complete(
       [{ role: 'user', content: raw }],
-      { system: ARCHITECT_SYSTEM_PROMPT, model: MODEL, maxTokens: MAX_TOKENS },
+      { system: ARCHITECT_SYSTEM_PROMPT, maxTokens: MAX_TOKENS },
     );
     return this.#parseJSON(response.content, raw);
   }
@@ -51,7 +50,7 @@ export class ArchitectAgent implements IArchitectAgent {
 
     const response = await this.#gateway.complete(
       [{ role: 'user', content: prompt }],
-      { system: ARCHITECT_SYSTEM_PROMPT, model: MODEL, maxTokens: MAX_TOKENS },
+      { system: ARCHITECT_SYSTEM_PROMPT, maxTokens: MAX_TOKENS },
     );
 
     const refined = this.#parseJSON(response.content, intent.raw);
