@@ -7,7 +7,8 @@
 
 import { type Node, type Edge, MarkerType } from '@xyflow/react';
 import type { NexusState } from './protocol.js';
-import type { NodeStatus } from './AgentNode.js';
+import type { NodeStatus } from './blueprint.styles.js';
+import { BP } from './blueprint.styles.js';
 
 export const PIPELINE = [
   { id: 'idle',             labelRu: 'Старт',        icon: '🚀', x: 0    },
@@ -56,7 +57,10 @@ function resolveStatus(id: string, cur: string, state: NexusState | null): NodeS
 
 // ── Builders ──────────────────────────────────────────────────────────────────
 
-export function buildNodes(state: NexusState | null): Node[] {
+export function buildNodes(
+  state: NexusState | null,
+  onSelect?: (role: string, status: string) => void,
+): Node[] {
   const cur  = state?.currentState ?? 'idle';
   const durs = new Map(state?.progress?.map((p) => [p.role, p.durationMs]));
 
@@ -72,11 +76,13 @@ export function buildNodes(state: NexusState | null): Node[] {
       position: { x: n.x, y: 0 },
       data: {
         labelRu:    n.labelRu,
+        role:       n.id,
         icon:       n.icon,
         status,
         durationMs: durs.get(n.id as PipelineId & string),
         errorMsg:   status === 'failed' ? (state?.error ?? undefined) : undefined,
         retryLabel,
+        onSelect,
       },
     };
   });
@@ -95,7 +101,7 @@ export function buildEdges(state: NexusState | null): Edge[] {
       ...MK,
       animated: active,
       style: {
-        stroke:      active ? 'var(--vscode-focusBorder, #007acc)' : 'var(--vscode-widget-border, #3c3c3c)',
+        stroke:      active ? BP.edgeActive : BP.edgeDefault,
         strokeWidth: active ? 2.5 : 1.5,
         transition:  'stroke 0.4s, stroke-width 0.3s',
       },
