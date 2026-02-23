@@ -29,6 +29,24 @@ import type {
 interface GeminiPart    { text: string }
 interface GeminiContent { role: 'user' | 'model'; parts: GeminiPart[] }
 
+type HarmCategory =
+  | 'HARM_CATEGORY_HATE_SPEECH'
+  | 'HARM_CATEGORY_DANGEROUS_CONTENT'
+  | 'HARM_CATEGORY_SEXUALLY_EXPLICIT'
+  | 'HARM_CATEGORY_HARASSMENT';
+
+interface GeminiSafetySetting {
+  category: HarmCategory;
+  threshold: 'BLOCK_ONLY_HIGH';
+}
+
+const SAFETY_SETTINGS: GeminiSafetySetting[] = [
+  { category: 'HARM_CATEGORY_HATE_SPEECH',        threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT',  threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',  threshold: 'BLOCK_ONLY_HIGH' },
+  { category: 'HARM_CATEGORY_HARASSMENT',         threshold: 'BLOCK_ONLY_HIGH' },
+];
+
 interface GeminiRequest {
   systemInstruction?: { parts: GeminiPart[] };
   contents: GeminiContent[];
@@ -36,7 +54,9 @@ interface GeminiRequest {
     temperature?: number;
     maxOutputTokens?: number;
     stopSequences?: string[];
+    responseMimeType?: string;
   };
+  safetySettings?: GeminiSafetySetting[];
 }
 
 interface GeminiCandidate {
@@ -176,11 +196,14 @@ export class GeminiGateway implements ILLMGateway {
       req.systemInstruction = { parts: [{ text: sysText }] };
     }
 
-    const config: GeminiRequest['generationConfig'] = {};
+    const config: GeminiRequest['generationConfig'] = {
+      responseMimeType: 'application/json',
+    };
     if (opts.temperature !== undefined) config.temperature = opts.temperature;
     if (opts.maxTokens)                 config.maxOutputTokens = opts.maxTokens;
     if (opts.stopSequences?.length)     config.stopSequences = [...opts.stopSequences];
-    if (Object.keys(config).length)     req.generationConfig = config;
+    req.generationConfig = config;
+    req.safetySettings = SAFETY_SETTINGS;
 
     return req;
   }

@@ -123,6 +123,30 @@ describe('GeminiGateway.complete', () => {
     expect(body.systemInstruction?.parts[0]?.text).toContain('You are helpful');
     expect(body.contents).toHaveLength(1);
   });
+
+  it('always sets responseMimeType to application/json', async () => {
+    mockFetch(geminiResp('{"result":1}'));
+    const gw = new GeminiGateway({ apiKey: 'k' });
+    await gw.complete([{ role: 'user', content: 'give me json' }]);
+    const body = parsedBody() as { generationConfig: { responseMimeType: string } };
+    expect(body.generationConfig?.responseMimeType).toBe('application/json');
+  });
+
+  it('includes BLOCK_ONLY_HIGH safety settings for all harm categories', async () => {
+    mockFetch(geminiResp('ok'));
+    const gw = new GeminiGateway({ apiKey: 'k' });
+    await gw.complete([{ role: 'user', content: 'hi' }]);
+    const body = parsedBody() as {
+      safetySettings: Array<{ category: string; threshold: string }>;
+    };
+    expect(body.safetySettings).toHaveLength(4);
+    expect(body.safetySettings?.every((s) => s.threshold === 'BLOCK_ONLY_HIGH')).toBe(true);
+    const categories = body.safetySettings?.map((s) => s.category);
+    expect(categories).toContain('HARM_CATEGORY_HATE_SPEECH');
+    expect(categories).toContain('HARM_CATEGORY_DANGEROUS_CONTENT');
+    expect(categories).toContain('HARM_CATEGORY_SEXUALLY_EXPLICIT');
+    expect(categories).toContain('HARM_CATEGORY_HARASSMENT');
+  });
 });
 
 // ── interface compliance ──────────────────────────────────────────────────────
