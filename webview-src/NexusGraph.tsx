@@ -1,89 +1,82 @@
 /**
- * NexusGraph — XState pipeline visualizer (React Flow).
- * Pipeline: idle → architect → awaitingApproval → coder → shadowBuild → reviewer → tester → done
+ * NexusGraph — Blueprint/Unreal-style XState pipeline graph (React Flow).
+ * Dark navy grid, cyan glowing nodes, animated wire edges, slide-in detail panel.
+ * XState context bindings: currentState → currentAgent, status → pipelineStatus, error → lastError.
  * @security No eval — data flows via postMessage structural objects.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { ReactFlow, Background, Controls, MiniMap, BackgroundVariant } from '@xyflow/react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { ReactFlow, Background, Controls, BackgroundVariant } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { ExtensionMessage, NexusState } from './protocol.js';
 import { vscodeApi } from './vscodeApi.js';
-import { AgentNode } from './AgentNode.js';
-import { buildNodes, buildEdges, STATE_LABELS } from './pipeline.config.js';
+import { BlueprintNode } from './BlueprintNode.js';
+import { BlueprintPanel, type PanelData } from './BlueprintPanel.js';
+import { buildNodes, buildEdges, STATE_LABELS, PIPELINE } from './pipeline.config.js';
+import { BP, BLUEPRINT_CSS } from './blueprint.styles.js';
 
-const nodeTypes = { agent: AgentNode };
+// Stable reference — MUST be defined outside component to avoid React Flow re-mounts
+const nodeTypes = { agent: BlueprintNode };
+const TERMINAL  = new Set(['idle', 'done', 'failed', 'cancelled']);
 
-const PULSE_CSS = `
-  @keyframes nexus-active-pulse {
-    0%   { box-shadow: 0 0 0 0px  rgba(0,122,204,.45); }
-    65%  { box-shadow: 0 0 0 10px rgba(0,122,204,0);   }
-    100% { box-shadow: 0 0 0 0px  rgba(0,122,204,0);   }
-  }
-  .nexus-node-active { animation: nexus-active-pulse 1.6s ease-out infinite; }
-`;
+// ── Blueprint toolbar ─────────────────────────────────────────────────────────
 
-const TERMINAL = new Set(['idle', 'done', 'failed', 'cancelled']);
-
-function PipelineHeader({
-  cur, state, running, onCancel,
-}: { cur: string; state: NexusState | null; running: boolean; onCancel: () => void }) {
-  const fail   = cur === 'failed';
-  const pillFg = fail
-    ? 'var(--vscode-errorForeground, #da3633)'
-    : running ? 'var(--vscode-focusBorder, #007acc)' : 'var(--vscode-descriptionForeground, #888)';
-  const pillBg = fail
-    ? 'var(--vscode-inputValidation-errorBackground, #5a1d1d)'
-    : running ? 'var(--vscode-editorInfo-background, #007acc1a)' : 'transparent';
-
+function BpHeader({ cur, state, running, onCancel }: {
+  cur: string; state: NexusState | null; running: boolean; onCancel: () => void;
+}) {
+  const fail = cur === 'failed';
+  const sClr = fail ? BP.nodeFailed : running ? BP.nodeActive : BP.textDim;
   return (
     <div style={{
-      height: 42, padding: '0 16px', flexShrink: 0,
+      height: 44, padding: '0 16px', flexShrink: 0,
       display: 'flex', alignItems: 'center', gap: 10,
-      borderBottom: '1px solid var(--vscode-panel-border, #3c3c3c)',
+      background: BP.bg, borderBottom: `1px solid ${BP.nodeIdle}`,
+      fontFamily: '"Courier New", monospace',
     }}>
+      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: BP.nodeActive }}>
+        NEXUS
+      </span>
+      <span style={{ color: BP.nodeIdle, fontSize: 14, lineHeight: 1 }}>│</span>
       <span style={{
-        fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase',
-        color: 'var(--vscode-descriptionForeground, #555)',
-      }}>Nexus</span>
-
-      <span style={{
-        fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 10,
-        background: pillBg, color: pillFg, border: `1px solid ${pillFg}44`,
+        fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 2,
+        background: `${sClr}18`, border: `1px solid ${sClr}55`,
+        color: sClr, letterSpacing: 1,
       }}>
         {STATE_LABELS[cur] ?? cur}
       </span>
-
       <span style={{
-        flex: 1, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        color: fail ? 'var(--vscode-errorForeground, #da3633)' : 'var(--vscode-descriptionForeground, #666)',
+        flex: 1, fontSize: 10, color: fail ? BP.nodeFailed : BP.textDim,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }} title={fail ? state?.error : state?.intent}>
         {fail ? state?.error : state?.intent}
       </span>
-
       {running && (
         <button onClick={onCancel} style={{
-          border: 'none', borderRadius: 4, padding: '3px 12px',
-          cursor: 'pointer', fontSize: 11, fontWeight: 600,
-          background: 'var(--vscode-button-secondaryBackground, #3c3c3c)',
-          color:      'var(--vscode-button-secondaryForeground, #ccc)',
-        }}>Отмена</button>
+          background: `${BP.nodeFailed}18`, border: `1px solid ${BP.nodeFailed}55`,
+          color: BP.nodeFailed, borderRadius: 2, padding: '3px 12px',
+          cursor: 'pointer', fontSize: 10, fontWeight: 700, letterSpacing: 1,
+        }}>ABORT</button>
       )}
     </div>
   );
 }
 
+// ── Main component ────────────────────────────────────────────────────────────
+
 export function NexusGraph() {
   const [nexusState, setNexusState] = useState<NexusState | null>(null);
+  const [panel, setPanel]           = useState<PanelData | null>(null);
 
+  // Inject blueprint CSS keyframes once
   useEffect(() => {
-    if (document.getElementById('nexus-pulse-style')) return;
+    if (document.getElementById('bp-style')) return;
     const el = Object.assign(document.createElement('style'), {
-      id: 'nexus-pulse-style', textContent: PULSE_CSS,
+      id: 'bp-style', textContent: BLUEPRINT_CSS,
     });
     document.head.appendChild(el);
   }, []);
 
+  // Receive XState orchestrator snapshots from extension host
   useEffect(() => {
     const h = (ev: MessageEvent) => {
       const msg = ev.data as ExtensionMessage;
@@ -99,33 +92,41 @@ export function NexusGraph() {
       vscodeApi.postMessage({ type: 'user:cancel', taskId: nexusState.taskId });
   }, [nexusState]);
 
+  // Stable callback — opens detail panel for clicked node
+  const onSelect = useCallback((role: string, status: string) => {
+    const node = PIPELINE.find((n) => n.id === role);
+    setPanel(node ? { role, labelRu: node.labelRu, icon: node.icon, status } : null);
+  }, []);
+
   const cur     = nexusState?.currentState ?? 'idle';
   const running = !TERMINAL.has(cur);
+
+  // Memoize to avoid unnecessary React Flow diffing
+  const nodes = useMemo(() => buildNodes(nexusState, onSelect), [nexusState, onSelect]);
+  const edges = useMemo(() => buildEdges(nexusState), [nexusState]);
 
   return (
     <div style={{
       width: '100%', height: '100vh', display: 'flex', flexDirection: 'column',
-      background: 'var(--vscode-editor-background, #1e1e1e)',
+      background: BP.bg,
     }}>
-      <PipelineHeader cur={cur} state={nexusState} running={running} onCancel={onCancel} />
-      <div style={{ flex: 1 }}>
+      <BpHeader cur={cur} state={nexusState} running={running} onCancel={onCancel} />
+
+      <div style={{ flex: 1, position: 'relative' }}>
         <ReactFlow
-          nodes={buildNodes(nexusState)} edges={buildEdges(nexusState)}
-          nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.25 }}
+          nodes={nodes} edges={edges} nodeTypes={nodeTypes}
+          fitView fitViewOptions={{ padding: 0.2 }}
           proOptions={{ hideAttribution: true }}
         >
-          <Background variant={BackgroundVariant.Dots}
-            color="var(--vscode-widget-border, #2a2a2a)" gap={24} size={1} />
-          <Controls />
-          <MiniMap
-            nodeColor={(n) =>
-              n.data?.status === 'active' ? '#007acc'
-              : n.data?.status === 'done' ? '#2ea043' : '#3c3c3c'
-            }
-            maskColor="var(--vscode-editor-background, #1e1e1e)bb"
-            style={{ background: 'var(--vscode-sideBar-background, #252526)' }}
+          <Background
+            variant={BackgroundVariant.Lines}
+            color={BP.nodeIdle} gap={40} size={1}
           />
+          <Controls />
         </ReactFlow>
+
+        {/* Slide-in detail panel — position: absolute over the graph */}
+        <BlueprintPanel panel={panel} nexusState={nexusState} onClose={() => setPanel(null)} />
       </div>
     </div>
   );
