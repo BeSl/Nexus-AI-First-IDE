@@ -26,6 +26,10 @@ export interface NexusState {
   readonly status: TaskStatus;
   readonly progress: readonly AgentProgress[];
   readonly intent?: string;
+  /** Error string when currentState === 'failed' */
+  readonly error?: string;
+  /** Current shadowBuild retry attempt number (1-based) */
+  readonly retryCount?: number;
 }
 
 export interface AgentProgress {
