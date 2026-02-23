@@ -38,6 +38,8 @@ export interface IOrchestratorSnapshot {
     readonly currentTaskId?: string;
     readonly status?: TaskStatus;
     readonly intent?: string;
+    readonly error?: string | null;
+    readonly retryCount?: number;
   };
 }
 
@@ -72,7 +74,9 @@ export class OrchestratorBridge {
         taskId: snapshot.context.currentTaskId ?? null,
         status: snapshot.context.status ?? 'pending',
         progress,
-        ...(snapshot.context.intent ? { intent: snapshot.context.intent } : {}),
+        ...(snapshot.context.intent               ? { intent:     snapshot.context.intent }      : {}),
+        ...(snapshot.context.error                ? { error:      snapshot.context.error }        : {}),
+        ...(snapshot.context.retryCount           ? { retryCount: snapshot.context.retryCount }   : {}),
       } satisfies NexusState,
     };
     this.#webview.postMessage(msg);
