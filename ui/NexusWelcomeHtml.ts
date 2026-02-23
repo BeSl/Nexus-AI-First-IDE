@@ -1,10 +1,10 @@
 /**
  * NexusWelcomeHtml — HTML template for the first-run setup wizard.
- * Four steps: Welcome → Provider → API key → First intent.
+ * Four steps: Welcome → Provider → API key / Ollama URL+Model → First intent.
  *
  * Design rules that avoid VS Code webview parse errors:
  *  - No inline onclick/onXxx handlers (removed — use addEventListener)
- *  - No `<` operator in script (replaced with .length - 5 < 0 → use >=)
+ *  - No `<` operator in script (replaced with >= checks)
  *  - No template literals inside the script block
  *  - CSP uses nonce for the single script block
  *
@@ -22,7 +22,7 @@ export function buildWelcomeHtml(nonce: string): string {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--vscode-font-family);color:var(--vscode-foreground);
-  background:var(--vscode-editor-background);padding:32px;max-width:560px;margin:0 auto}
+  background:var(--vscode-editor-background);padding:32px;max-width:600px;margin:0 auto}
 .step{display:none}.step.active{display:block}
 #dots{display:flex;gap:8px;justify-content:center;margin-bottom:28px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--vscode-widget-border)}
@@ -36,6 +36,7 @@ h1{font-size:28px;text-align:center;margin-bottom:6px}
 p{color:var(--vscode-descriptionForeground);line-height:1.6;margin:10px 0}
 h2{font-size:17px;margin-bottom:14px}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.cards.two{grid-template-columns:repeat(2,1fr)}
 .card{border:2px solid var(--vscode-widget-border);border-radius:8px;padding:14px;
       cursor:pointer;transition:border-color .15s}
 .card:hover{border-color:var(--vscode-button-background)}
@@ -59,6 +60,11 @@ button.sec{background:var(--vscode-button-secondaryBackground);
            color:var(--vscode-button-secondaryForeground)}
 button:disabled{opacity:.45;cursor:not-allowed}
 button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
+.conn-row{display:flex;gap:8px;align-items:center;margin-top:10px}
+.conn-row input{flex:1}
+#conn-status{font-size:12px;color:var(--vscode-descriptionForeground)}
+#model-section{margin-top:14px}
+#model-section label{margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -111,12 +117,30 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
   </div>
 </div>
 
-<!-- Step 3: API Key / Ollama URL -->
+<!-- Step 3: API Key / Ollama URL + Model -->
 <div class="step" id="s3">
   <h2 id="kt">API Key</h2>
   <label id="kl">Ключ</label>
-  <input id="ki" type="password" autocomplete="off" placeholder="">
-  <div class="hint" id="kh"></div>
+
+  <!-- Anthropic / Gemini: simple key input -->
+  <div id="key-section">
+    <input id="ki" type="password" autocomplete="off" placeholder="">
+    <div class="hint" id="kh"></div>
+  </div>
+
+  <!-- Ollama: URL + Connect + Model list -->
+  <div id="ollama-section" style="display:none">
+    <div class="conn-row">
+      <input id="ollama-url" type="text" placeholder="http://localhost:11434">
+      <button id="btn-connect" type="button">Подключить</button>
+    </div>
+    <span id="conn-status"></span>
+    <div id="model-section" style="display:none">
+      <label>Выберите модель:</label>
+      <div id="model-cards" class="cards two"></div>
+    </div>
+  </div>
+
   <div class="btns">
     <button id="btn-n3" disabled>Далее &#8594;</button>
     <button class="sec" id="btn-back3">&#8592; Назад</button>
@@ -142,11 +166,11 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
   var vs = acquireVsCodeApi();
   var step = 1;
   var prov = '';
+  var selectedModel = '';
 
   var PI = {
     anthropic: { title: 'Anthropic API Key', label: 'API Key (sk-ant-...)', ph: 'sk-ant-api03-...', tp: 'password', url: 'console.anthropic.com' },
-    gemini:    { title: 'Google Gemini API Key', label: 'API Key (AIza...)', ph: 'AIzaSy...', tp: 'password', url: 'aistudio.google.com/apikey' },
-    ollama:    { title: 'Ollama — URL сервера', label: 'URL сервера', ph: 'http://localhost:11434', tp: 'text', url: 'ollama.ai/download' }
+    gemini:    { title: 'Google Gemini API Key', label: 'API Key (AIza...)', ph: 'AIzaSy...', tp: 'password', url: 'aistudio.google.com/apikey' }
   };
 
   function go(n) {
@@ -155,7 +179,7 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
     step = n;
     document.getElementById('s' + step).classList.add('active');
     document.getElementById('d' + step).classList.add('on');
-    if (n === 3) { refreshKey(); }
+    if (n === 3) { refreshStep3(); }
   }
 
   function pick(p) {
@@ -168,40 +192,97 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
     vs.postMessage({ type: 'wizard:setProvider', provider: p });
   }
 
-  function refreshKey() {
-    var info = PI[prov] || PI.anthropic;
-    document.getElementById('kt').textContent = info.title;
-    document.getElementById('kl').textContent = info.label;
-    var ki = document.getElementById('ki');
-    ki.placeholder = info.ph;
-    ki.type = info.tp;
-    ki.value = info.tp === 'text' ? info.ph : '';
+  function refreshStep3() {
+    var isOllama = prov === 'ollama';
+    document.getElementById('key-section').style.display   = isOllama ? 'none' : 'block';
+    document.getElementById('ollama-section').style.display = isOllama ? 'block' : 'none';
 
-    var hintEl = document.getElementById('kh');
-    hintEl.textContent = 'Получить: ';
-    var link = document.createElement('a');
-    link.textContent = info.url;
-    link.href = '#';
-    link.addEventListener('click', function (e) {
-      e.preventDefault();
-      vs.postMessage({ type: 'wizard:openUrl', url: 'https://' + info.url });
-    });
-    hintEl.appendChild(link);
+    if (!isOllama) {
+      var info = PI[prov] || PI.anthropic;
+      document.getElementById('kt').textContent = info.title;
+      document.getElementById('kl').textContent = info.label;
+      var ki = document.getElementById('ki');
+      ki.placeholder = info.ph;
+      ki.type = info.tp;
+      ki.value = '';
+      var hintEl = document.getElementById('kh');
+      hintEl.textContent = 'Получить: ';
+      var link = document.createElement('a');
+      link.textContent = info.url;
+      link.href = '#';
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+        vs.postMessage({ type: 'wizard:openUrl', url: 'https://' + info.url });
+      });
+      hintEl.appendChild(link);
+    } else {
+      document.getElementById('kt').textContent = 'Ollama — URL сервера';
+      document.getElementById('kl').textContent = '';
+    }
     checkKey();
   }
 
   function checkKey() {
-    var v = document.getElementById('ki').value.trim();
-    var ok = prov === 'ollama' ? v.indexOf('http') === 0 : v.length > 8;
+    var ok = false;
+    if (prov === 'ollama') {
+      var url = document.getElementById('ollama-url').value.trim();
+      ok = url.indexOf('http') === 0 && selectedModel.length > 0;
+    } else {
+      var v = document.getElementById('ki').value.trim();
+      ok = v.length > 8;
+    }
     var btn = document.getElementById('btn-n3');
     if (ok) { btn.removeAttribute('disabled'); } else { btn.setAttribute('disabled', ''); }
   }
 
+  function connectOllama() {
+    var url = document.getElementById('ollama-url').value.trim();
+    if (url.indexOf('http') !== 0) return;
+    document.getElementById('conn-status').textContent = 'Подключение...';
+    document.getElementById('btn-connect').setAttribute('disabled', '');
+    vs.postMessage({ type: 'wizard:fetchModels', url: url });
+  }
+
+  function renderModels(models) {
+    var container = document.getElementById('model-cards');
+    container.innerHTML = '';
+    selectedModel = '';
+    models.forEach(function (m) {
+      var card = document.createElement('div');
+      card.className = 'card';
+      var b = document.createElement('b');
+      b.textContent = m.name;
+      card.appendChild(b);
+      if (m.details) {
+        var small = document.createElement('small');
+        var parts = [];
+        if (m.details.parameter_size) { parts.push(m.details.parameter_size); }
+        if (m.details.quantization_level) { parts.push(m.details.quantization_level); }
+        small.textContent = parts.join(' ');
+        card.appendChild(small);
+      }
+      card.addEventListener('click', function () {
+        var cards = document.querySelectorAll('#model-cards .card');
+        for (var i = 0; i < cards.length; i++) { cards[i].classList.remove('sel'); }
+        card.classList.add('sel');
+        selectedModel = m.name;
+        vs.postMessage({ type: 'wizard:setModel', model: m.name });
+        checkKey();
+      });
+      container.appendChild(card);
+    });
+    document.getElementById('model-section').style.display = 'block';
+    document.getElementById('conn-status').textContent = 'Подключено (' + models.length + ' моделей)';
+    document.getElementById('btn-connect').removeAttribute('disabled');
+    checkKey();
+  }
+
   function saveKey() {
-    var v = document.getElementById('ki').value.trim();
     if (prov === 'ollama') {
-      vs.postMessage({ type: 'wizard:setOllamaUrl', url: v });
+      var url = document.getElementById('ollama-url').value.trim();
+      vs.postMessage({ type: 'wizard:setOllamaUrl', url: url });
     } else {
+      var v = document.getElementById('ki').value.trim();
       vs.postMessage({ type: 'wizard:setApiKey', provider: prov, key: v });
     }
     go(4);
@@ -218,21 +299,33 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
     if (intent.length >= 5) { vs.postMessage({ type: 'wizard:launch', intent: intent }); }
   }
 
-  // ── Wire up buttons ──────────────────────────────────────────────────────
+  // ── Listen for messages from extension (model list) ──────────────────────
+  window.addEventListener('message', function (ev) {
+    var msg = ev.data;
+    if (msg.type === 'wizard:modelsLoaded') {
+      renderModels(msg.models || []);
+    } else if (msg.type === 'wizard:modelsError') {
+      document.getElementById('conn-status').textContent = 'Ошибка: ' + msg.error;
+      document.getElementById('btn-connect').removeAttribute('disabled');
+    }
+  });
 
-  document.getElementById('btn-start').addEventListener('click',  function () { go(2); });
-  document.getElementById('btn-skip1').addEventListener('click',  function () { vs.postMessage({ type: 'wizard:skip' }); });
-  document.getElementById('btn-back2').addEventListener('click',  function () { go(1); });
-  document.getElementById('btn-n2').addEventListener('click',     function () { go(3); });
-  document.getElementById('c-anthropic').addEventListener('click',function () { pick('anthropic'); });
-  document.getElementById('c-gemini').addEventListener('click',   function () { pick('gemini'); });
-  document.getElementById('c-ollama').addEventListener('click',   function () { pick('ollama'); });
-  document.getElementById('btn-back3').addEventListener('click',  function () { go(2); });
-  document.getElementById('btn-n3').addEventListener('click',     saveKey);
-  document.getElementById('ki').addEventListener('input',         checkKey);
-  document.getElementById('btn-back4').addEventListener('click',  function () { go(3); });
-  document.getElementById('btn-launch').addEventListener('click', launch);
-  document.getElementById('ii').addEventListener('input',         checkIntent);
+  // ── Wire up buttons ──────────────────────────────────────────────────────
+  document.getElementById('btn-start').addEventListener('click',    function () { go(2); });
+  document.getElementById('btn-skip1').addEventListener('click',    function () { vs.postMessage({ type: 'wizard:skip' }); });
+  document.getElementById('btn-back2').addEventListener('click',    function () { go(1); });
+  document.getElementById('btn-n2').addEventListener('click',       function () { go(3); });
+  document.getElementById('c-anthropic').addEventListener('click',  function () { pick('anthropic'); });
+  document.getElementById('c-gemini').addEventListener('click',     function () { pick('gemini'); });
+  document.getElementById('c-ollama').addEventListener('click',     function () { pick('ollama'); });
+  document.getElementById('btn-connect').addEventListener('click',  connectOllama);
+  document.getElementById('ollama-url').addEventListener('input',   checkKey);
+  document.getElementById('btn-back3').addEventListener('click',    function () { go(2); });
+  document.getElementById('btn-n3').addEventListener('click',       saveKey);
+  document.getElementById('ki').addEventListener('input',           checkKey);
+  document.getElementById('btn-back4').addEventListener('click',    function () { go(3); });
+  document.getElementById('btn-launch').addEventListener('click',   launch);
+  document.getElementById('ii').addEventListener('input',           checkIntent);
 }());
 </script>
 </body>

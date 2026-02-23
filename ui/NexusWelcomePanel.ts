@@ -14,10 +14,18 @@ import crypto from 'node:crypto';
 
 export type LaunchCallback = (intent: string) => void;
 
+/** Ollama model entry from GET /api/tags */
+interface OllamaModelInfo {
+  name: string;
+  details?: { parameter_size?: string; quantization_level?: string };
+}
+
 type WizardMessage =
   | { type: 'wizard:setProvider'; provider: string }
   | { type: 'wizard:setApiKey';   provider: string; key: string }
   | { type: 'wizard:setOllamaUrl'; url: string }
+  | { type: 'wizard:fetchModels'; url: string }
+  | { type: 'wizard:setModel';    model: string }
   | { type: 'wizard:openUrl';     url: string }
   | { type: 'wizard:launch';      intent: string }
   | { type: 'wizard:skip' };
@@ -78,6 +86,28 @@ export class NexusWelcomePanel {
 
       case 'wizard:setOllamaUrl':
         await cfg.update('llm.ollama.baseUrl', msg.url, vscode.ConfigurationTarget.Global);
+        break;
+
+      case 'wizard:fetchModels': {
+        try {
+          const resp = await fetch(`${msg.url}/api/tags`);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = await resp.json() as { models: OllamaModelInfo[] };
+          void this.#panel.webview.postMessage({
+            type: 'wizard:modelsLoaded',
+            models: data.models ?? [],
+          });
+        } catch (err) {
+          void this.#panel.webview.postMessage({
+            type: 'wizard:modelsError',
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+        break;
+      }
+
+      case 'wizard:setModel':
+        await cfg.update('llm.model', msg.model, vscode.ConfigurationTarget.Global);
         break;
 
       case 'wizard:openUrl':
