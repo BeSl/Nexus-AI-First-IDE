@@ -11,14 +11,14 @@ import type { NodeStatus } from './blueprint.styles.js';
 import { BP } from './blueprint.styles.js';
 
 export const PIPELINE = [
-  { id: 'idle',             labelRu: 'Старт',        icon: '🚀', x: 0    },
-  { id: 'architect',        labelRu: 'Архитектор',   icon: '🏗',  x: 200  },
-  { id: 'awaitingApproval', labelRu: 'Согласование', icon: '✋',  x: 400  },
-  { id: 'coder',            labelRu: 'Кодер',        icon: '💻',  x: 600  },
-  { id: 'shadowBuild',      labelRu: 'Сборка',       icon: '🔨',  x: 800  },
-  { id: 'reviewer',         labelRu: 'Ревьюер',      icon: '🔍',  x: 1000 },
-  { id: 'tester',           labelRu: 'Тестер',       icon: '🧪',  x: 1200 },
-  { id: 'done',             labelRu: 'Готово',       icon: '🎉',  x: 1400 },
+  { id: 'idle',             labelRu: 'Старт',        icon: '🚀', x: 0,    y: 0   },
+  { id: 'architect',        labelRu: 'Архитектор',   icon: '🏗',  x: 350,  y: 0   },
+  { id: 'awaitingApproval', labelRu: 'Согласование', icon: '✋',  x: 700,  y: 0   },
+  { id: 'coder',            labelRu: 'Кодер',        icon: '💻',  x: 1050, y: 0   },
+  { id: 'shadowBuild',      labelRu: 'Сборка',       icon: '🔨',  x: 1400, y: 0   },
+  { id: 'reviewer',         labelRu: 'Ревьюер',      icon: '🔍',  x: 1750, y: 0   },
+  { id: 'tester',           labelRu: 'Тестер',       icon: '🧪',  x: 2100, y: 0   },
+  { id: 'done',             labelRu: 'Готово',       icon: '🎉',  x: 2450, y: 0   },
 ] as const;
 
 type PipelineId = typeof PIPELINE[number]['id'];
@@ -64,7 +64,11 @@ export function buildNodes(
   const cur  = state?.currentState ?? 'idle';
   const durs = new Map(state?.progress?.map((p) => [p.role, p.durationMs]));
 
-  return PIPELINE.map((n) => {
+  // Center vertically based on number of nodes
+  const totalHeight = PIPELINE.length * 180;
+  const startY = -totalHeight / 2 + 120;
+
+  return PIPELINE.map((n, idx) => {
     const status     = resolveStatus(n.id, cur, state);
     const isShadow   = n.id === 'shadowBuild';
     const retryLabel = isShadow && (state?.retryCount ?? 0) > 0
@@ -73,7 +77,7 @@ export function buildNodes(
 
     return {
       id: n.id, type: 'agent',
-      position: { x: n.x, y: 0 },
+      position: { x: n.x, y: startY + idx * 20 },
       data: {
         labelRu:    n.labelRu,
         role:       n.id,
@@ -90,21 +94,31 @@ export function buildNodes(
 
 export function buildEdges(state: NexusState | null): Edge[] {
   const cur = state?.currentState ?? 'idle';
-  const MK  = { markerEnd: { type: MarkerType.ArrowClosed } };
+  const MK  = { 
+    markerEnd: { 
+      type: MarkerType.ArrowClosed,
+      color: BP.nodeActive,
+      width: 20,
+      height: 20,
+    } 
+  };
 
   return PIPELINE.slice(0, -1).map((n, i) => {
     const tgt    = PIPELINE[i + 1]!;
     const active = cur === n.id;
+    const done = PIPELINE.findIndex(p => p.id === cur) > i;
     return {
       id: `${n.id}->${tgt.id}`,
       source: n.id, target: tgt.id,
       ...MK,
       animated: active,
       style: {
-        stroke:      active ? BP.edgeActive : BP.edgeDefault,
-        strokeWidth: active ? 2.5 : 1.5,
+        stroke:      active ? BP.edgeActive : done ? BP.nodeDone : BP.edgeDefault,
+        strokeWidth: active ? 3 : 2,
+        strokeDasharray: done && !active ? '5,5' : undefined,
         transition:  'stroke 0.4s, stroke-width 0.3s',
       },
+      type: 'smoothstep',
     };
   });
 }
