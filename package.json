@@ -1,7 +1,7 @@
 {
   "name": "nexus-agent-ide",
   "displayName": "Nexus Agent IDE",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "AI-First IDE — agentic TypeScript development powered by Claude & local LLMs",
   "publisher": "nexus-ai",
   "categories": [
@@ -119,11 +119,12 @@
       "properties": {
         "nexus.llm.provider": {
           "type": "string",
-          "enum": ["anthropic", "gemini", "ollama"],
+          "enum": ["anthropic", "gemini", "ollama", "openai-compatible"],
           "enumDescriptions": [
             "Claude via Anthropic API (cloud, default)",
             "Google Gemini REST API (cloud)",
-            "Local Ollama server (offline, no API key needed)"
+            "Local Ollama server (offline, no API key needed)",
+            "Any OpenAI-compatible endpoint (OpenAI, OpenRouter, Azure, local vLLM, etc.)"
           ],
           "default": "anthropic",
           "description": "AI provider used for all agent calls."
@@ -147,6 +148,21 @@
           "type": "string",
           "default": "http://localhost:11434",
           "description": "Ollama server base URL. Change if Ollama is running on a different port or host."
+        },
+        "nexus.llm.openai.apiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "API key for OpenAI-compatible endpoint. Get one at [platform.openai.com](https://platform.openai.com) or use a compatible service (OpenRouter, Azure, etc.).\n\nAlternatively set the `OPENAI_API_KEY` environment variable."
+        },
+        "nexus.llm.openai.baseUrl": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "markdownDescription": "Base URL for OpenAI-compatible API endpoint.\n\nExamples:\n- OpenAI: `https://api.openai.com/v1`\n- OpenRouter: `https://openrouter.ai/api/v1`\n- Azure OpenAI: `https://YOUR_RESOURCE.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT`\n- Local vLLM: `http://localhost:8000/v1`"
+        },
+        "nexus.llm.openai.model": {
+          "type": "string",
+          "default": "gpt-4",
+          "markdownDescription": "Default model name for OpenAI-compatible provider.\n\nExamples: `gpt-4`, `gpt-3.5-turbo`, `mistral-large`, `llama-3-70b`"
         }
       }
     }

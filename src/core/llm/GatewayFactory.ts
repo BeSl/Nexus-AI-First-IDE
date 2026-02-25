@@ -5,9 +5,10 @@
  * ILLMGateway implementation. Agents remain model-agnostic.
  *
  * Supported providers:
- *   anthropic  — Claude via Anthropic API (default)
- *   ollama     — Local Ollama server (no external calls)
- *   gemini     — Google Gemini REST API
+ *   anthropic          — Claude via Anthropic API (default)
+ *   ollama             — Local Ollama server (no external calls)
+ *   gemini             — Google Gemini REST API
+ *   openai-compatible  — Any OpenAI API compatible endpoint (OpenAI, Azure, OpenRouter, etc.)
  *
  * @security API keys come from env variables only. Never pass from user input.
  */
@@ -15,9 +16,10 @@
 import { AnthropicGateway } from './AnthropicGateway.js';
 import { OllamaGateway } from './OllamaGateway.js';
 import { GeminiGateway } from './GeminiGateway.js';
+import { OpenAICompatibleGateway } from './OpenAICompatibleGateway.js';
 import type { ILLMGateway } from './LLMGateway.types.js';
 
-export type LlmProvider = 'anthropic' | 'ollama' | 'gemini';
+export type LlmProvider = 'anthropic' | 'ollama' | 'gemini' | 'openai-compatible';
 
 export interface GatewayOptions {
   /** Override provider (default: NEXUS_LLM_PROVIDER env, fallback 'anthropic') */
@@ -28,6 +30,10 @@ export interface GatewayOptions {
   readonly ollamaBaseUrl?: string;
   /** Gemini-specific API key override (default: GEMINI_API_KEY env) */
   readonly geminiApiKey?: string;
+  /** OpenAI-compatible API key override (default: OPENAI_API_KEY env) */
+  readonly openaiApiKey?: string;
+  /** OpenAI-compatible base URL override (default: OPENAI_BASE_URL env, fallback https://api.openai.com/v1) */
+  readonly openaiBaseUrl?: string;
   /** Model name override */
   readonly model?: string;
 }
@@ -57,6 +63,13 @@ export function createGateway(opts: GatewayOptions = {}): ILLMGateway {
     case 'gemini':
       return new GeminiGateway({
         ...(opts.geminiApiKey ? { apiKey: opts.geminiApiKey } : {}),
+        ...(opts.model ? { model: opts.model } : {}),
+      });
+
+    case 'openai-compatible':
+      return new OpenAICompatibleGateway({
+        ...(opts.openaiBaseUrl ? { baseUrl: opts.openaiBaseUrl } : {}),
+        ...(opts.openaiApiKey ? { apiKey: opts.openaiApiKey } : {}),
         ...(opts.model ? { model: opts.model } : {}),
       });
 
