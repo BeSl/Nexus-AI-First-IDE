@@ -24,6 +24,7 @@ type WizardMessage =
   | { type: 'wizard:setProvider'; provider: string }
   | { type: 'wizard:setApiKey';   provider: string; key: string }
   | { type: 'wizard:setOllamaUrl'; url: string }
+  | { type: 'wizard:setOpenAiBaseUrl'; url: string }
   | { type: 'wizard:fetchModels'; url: string }
   | { type: 'wizard:setModel';    model: string }
   | { type: 'wizard:openUrl';     url: string }
@@ -86,6 +87,10 @@ export class NexusWelcomePanel {
 
       case 'wizard:setOllamaUrl':
         await cfg.update('llm.ollama.baseUrl', msg.url, vscode.ConfigurationTarget.Global);
+        break;
+
+      case 'wizard:setOpenAiBaseUrl':
+        await cfg.update('llm.openai.baseUrl', msg.url, vscode.ConfigurationTarget.Global);
         break;
 
       case 'wizard:fetchModels': {

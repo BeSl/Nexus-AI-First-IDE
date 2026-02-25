@@ -41,8 +41,8 @@ export const BLUEPRINT_CSS = `
   .bp-failed { animation: bp-shake 0.55s ease-in-out; }
   .bp-done   { animation: bp-flash 0.8s ease-out forwards; }
   @keyframes bp-pulse {
-    0%,100% { box-shadow: 0 0 12px ${BP.nodeActive}88, 0 0 32px ${BP.nodeActive}22; }
-    50%     { box-shadow: 0 0 22px ${BP.nodeActive}cc, 0 0 52px ${BP.nodeActive}44; }
+    0%,100% { box-shadow: 0 0 16px ${BP.nodeActive}88, 0 0 40px ${BP.nodeActive}22, 0 4px 20px rgba(0,0,0,0.4); }
+    50%     { box-shadow: 0 0 28px ${BP.nodeActive}cc, 0 0 60px ${BP.nodeActive}44, 0 4px 20px rgba(0,0,0,0.4); }
   }
   @keyframes bp-shake {
     0%,100%{ transform:translateX(0) }  15%{ transform:translateX(-7px) }
@@ -51,11 +51,13 @@ export const BLUEPRINT_CSS = `
     90%    { transform:translateX(2px) }
   }
   @keyframes bp-flash {
-    0%   { box-shadow: 0 0 22px ${BP.nodeDone}cc; }
-    100% { box-shadow: 0 0 10px ${BP.nodeDone}44; }
+    0%   { box-shadow: 0 0 28px ${BP.nodeDone}cc, 0 4px 20px rgba(0,0,0,0.4); }
+    100% { box-shadow: 0 0 12px ${BP.nodeDone}44, 0 4px 20px rgba(0,0,0,0.4); }
   }
   .react-flow__node { filter: none; }
   .react-flow__controls { background: #0b162888 !important; border: 1px solid #183050 !important; }
   .react-flow__controls-button { background: transparent !important; border-color: #183050 !important; fill: #3a6e9a !important; }
   .react-flow__controls-button:hover { background: #00c8f018 !important; fill: #00c8f0 !important; }
+  .react-flow__minimap { border-radius: 8px; overflow: hidden; }
+  .react-flow__edge-path { stroke-width: 2; }
 `;

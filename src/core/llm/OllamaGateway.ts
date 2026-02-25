@@ -63,7 +63,7 @@ export class OllamaGateway implements ILLMGateway {
     const body = this.#buildBody(messages, opts, false);
     const resp = await fetch(`${this.#baseUrl}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify(body),
     });
 
@@ -82,7 +82,7 @@ export class OllamaGateway implements ILLMGateway {
     const body = this.#buildBody(messages, opts, true);
     const resp = await fetch(`${this.#baseUrl}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify(body),
     });
 

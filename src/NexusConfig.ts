@@ -55,6 +55,10 @@ export function readConfigStatus(): NexusConfigStatus {
     apiKeyConfigured = !!(get('llm.gemini.apiKey') ?? process.env['GEMINI_API_KEY']);
     if (!apiKeyConfigured)
       missingHint = 'Add Gemini API key in Settings → nexus.llm.gemini.apiKey (aistudio.google.com/apikey)';
+  } else if (provider === 'openai-compatible') {
+    apiKeyConfigured = !!(get('llm.openai.apiKey') ?? process.env['OPENAI_API_KEY']);
+    if (!apiKeyConfigured)
+      missingHint = 'Add API key in Settings → nexus.llm.openai.apiKey (or set OPENAI_API_KEY env)';
   } else {
     apiKeyConfigured = true; // Ollama needs no key
   }
@@ -73,10 +77,13 @@ export function readGatewayOptions(): GatewayOptions {
     'anthropic'
   ) as LlmProvider;
 
-  const model          = get('llm.model')          ?? process.env['OLLAMA_MODEL'];
+  const model           = get('llm.model')            ?? process.env['OLLAMA_MODEL'];
   const anthropicApiKey = get('llm.anthropic.apiKey') ?? process.env['ANTHROPIC_API_KEY'];
-  const geminiApiKey   = get('llm.gemini.apiKey')   ?? process.env['GEMINI_API_KEY'];
-  const ollamaBaseUrl  = get('llm.ollama.baseUrl')  ?? process.env['OLLAMA_BASE_URL'];
+  const geminiApiKey    = get('llm.gemini.apiKey')    ?? process.env['GEMINI_API_KEY'];
+  const ollamaBaseUrl   = get('llm.ollama.baseUrl')   ?? process.env['OLLAMA_BASE_URL'];
+  const openaiApiKey    = get('llm.openai.apiKey')    ?? process.env['OPENAI_API_KEY'];
+  const openaiBaseUrl   = get('llm.openai.baseUrl')   ?? process.env['OPENAI_BASE_URL'];
+  const openaiModel     = get('llm.openai.model')     ?? process.env['OPENAI_MODEL'];
 
   return {
     provider,
@@ -84,5 +91,8 @@ export function readGatewayOptions(): GatewayOptions {
     ...(anthropicApiKey ? { anthropicApiKey } : {}),
     ...(geminiApiKey    ? { geminiApiKey }    : {}),
     ...(ollamaBaseUrl   ? { ollamaBaseUrl }   : {}),
+    ...(openaiApiKey    ? { openaiApiKey }    : {}),
+    ...(openaiBaseUrl   ? { openaiBaseUrl }   : {}),
+    ...(openaiModel     ? { model: openaiModel } : {}),
   };
 }

@@ -36,7 +36,11 @@ const STATUS_CLR: Record<string, string> = {
 const ANIM: Record<string, string> = { active: 'bp-active', failed: 'bp-failed', done: 'bp-done' };
 
 const pin = (c: string) => ({
-  width: 10, height: 10, background: c, border: `2px solid ${BP.bg}`, borderRadius: 2,
+  width: 16, height: 16, 
+  background: `linear-gradient(135deg, ${BP.nodeBg} 0%, #0a1628 100%)`,
+  border: `2px solid ${c}`,
+  borderRadius: '4px',
+  boxShadow: `0 0 8px ${c}44`,
 });
 
 export function BlueprintNode({ data }: NodeProps) {
@@ -46,64 +50,94 @@ export function BlueprintNode({ data }: NodeProps) {
 
   return (
     <>
-      <Handle type="target" position={Position.Left} style={pin(border)} />
+      {/* Input handle - left side */}
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        style={{
+          ...pin(border),
+          left: -8,
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }}
+      />
 
+      {/* Main node card */}
       <div
         className={ANIM[status]}
         title={errorMsg ?? labelRu}
         onClick={() => onSelect?.(role, status)}
         style={{
-          minWidth: 160, cursor: 'pointer',
-          background: `linear-gradient(155deg, ${BP.nodeBg}, #080f1e)`,
-          border: `1px solid ${border}`,
-          borderRadius: 3,
-          boxShadow: GLOW[status] ?? 'none',
-          opacity: status === 'pending' ? 0.45 : 1,
-          transition: 'opacity 0.3s, box-shadow 0.3s',
+          width: 220,
+          cursor: 'pointer',
+          background: `linear-gradient(180deg, ${BP.nodeBg} 0%, #070d19 100%)`,
+          border: `2px solid ${border}`,
+          borderRadius: 12,
+          boxShadow: GLOW[status] ?? `0 4px 20px rgba(0,0,0,0.4)`,
+          opacity: status === 'pending' ? 0.4 : 1,
+          transition: 'all 0.3s ease',
           overflow: 'hidden',
           userSelect: 'none',
         }}
       >
-        {/* Header bar */}
+        {/* Header bar - n8n style */}
         <div style={{
-          background: `${border}18`, borderBottom: `1px solid ${border}44`,
-          padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 7,
+          background: `${border}22`, borderBottom: `1px solid ${border}33`,
+          padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
         }}>
-          <span style={{ fontSize: 15 }}>{icon}</span>
+          <div style={{
+            width: 36, height: 36, borderRadius: 8,
+            background: `${border}18`, border: `1px solid ${border}44`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 18,
+          }}>
+            {icon}
+          </div>
           <span style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: 1.2,
-            color: BP.text, textTransform: 'uppercase' as const,
-            fontFamily: '"Courier New", monospace',
+            fontSize: 13, fontWeight: 600, letterSpacing: 0.5,
+            color: BP.text, 
+            fontFamily: 'system-ui, -apple-system, sans-serif',
           }}>{labelRu}</span>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '7px 10px' }}>
+        <div style={{ padding: '14px 16px' }}>
           <div style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: 1.5,
+            fontSize: 11, fontWeight: 700, letterSpacing: 1.5,
             color: STATUS_CLR[status] ?? BP.textDim,
-            fontFamily: '"Courier New", monospace',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            textTransform: 'uppercase' as const,
           }}>
             {STATUS_LABEL[status] ?? status.toUpperCase()}
           </div>
 
           {retryLabel && (
             <div style={{
-              marginTop: 4, fontSize: 8, padding: '1px 5px', display: 'inline-block',
-              background: `${BP.nodeActive}18`, border: `1px solid ${BP.nodeActive}44`,
-              borderRadius: 2, color: BP.nodeActive,
+              marginTop: 8, fontSize: 10, padding: '4px 8px', display: 'inline-block',
+              background: `${BP.nodeActive}22`, border: `1px solid ${BP.nodeActive}55`,
+              borderRadius: 4, color: BP.nodeActive, fontWeight: 600,
             }}>{retryLabel}</div>
           )}
 
           {status === 'done' && durationMs != null && (
-            <div style={{ fontSize: 8, color: BP.textDim, marginTop: 3 }}>
-              {(durationMs / 1000).toFixed(1)}s
+            <div style={{ fontSize: 11, color: BP.textDim, marginTop: 8, fontWeight: 500 }}>
+              ⏱ {(durationMs / 1000).toFixed(1)}s
             </div>
           )}
         </div>
       </div>
 
-      <Handle type="source" position={Position.Right} style={pin(border)} />
+      {/* Output handle - right side */}
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        style={{
+          ...pin(border),
+          right: -8,
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }} 
+      />
     </>
   );
 }

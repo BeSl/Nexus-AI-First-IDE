@@ -110,6 +110,10 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
       <b>Ollama</b>
       <small>Локально, без ключей и интернета.</small>
     </div>
+    <div class="card" id="c-openai">
+      <b>OpenAI / Совместимый</b>
+      <small>OpenAI, OpenRouter, Azure, vLLM, llama.cpp.</small>
+    </div>
   </div>
   <div class="btns">
     <button id="btn-n2" disabled>Далее &#8594;</button>
@@ -170,7 +174,8 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
 
   var PI = {
     anthropic: { title: 'Anthropic API Key', label: 'API Key (sk-ant-...)', ph: 'sk-ant-api03-...', tp: 'password', url: 'console.anthropic.com' },
-    gemini:    { title: 'Google Gemini API Key', label: 'API Key (AIza...)', ph: 'AIzaSy...', tp: 'password', url: 'aistudio.google.com/apikey' }
+    gemini:    { title: 'Google Gemini API Key', label: 'API Key (AIza...)', ph: 'AIzaSy...', tp: 'password', url: 'aistudio.google.com/apikey' },
+    'openai-compatible': { title: 'OpenAI API Key', label: 'API Key', ph: 'sk-...', tp: 'password', url: 'platform.openai.com' }
   };
 
   function go(n) {
@@ -184,7 +189,7 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
 
   function pick(p) {
     prov = p;
-    ['anthropic', 'gemini', 'ollama'].forEach(function (id) {
+    ['anthropic', 'gemini', 'ollama', 'openai-compatible'].forEach(function (id) {
       document.getElementById('c-' + id).classList.remove('sel');
     });
     document.getElementById('c-' + p).classList.add('sel');
@@ -194,8 +199,9 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
 
   function refreshStep3() {
     var isOllama = prov === 'ollama';
+    var isOpenAI = prov === 'openai-compatible';
     document.getElementById('key-section').style.display   = isOllama ? 'none' : 'block';
-    document.getElementById('ollama-section').style.display = isOllama ? 'block' : 'none';
+    document.getElementById('ollama-section').style.display = isOllama || isOpenAI ? 'block' : 'none';
 
     if (!isOllama) {
       var info = PI[prov] || PI.anthropic;
@@ -215,9 +221,18 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
         vs.postMessage({ type: 'wizard:openUrl', url: 'https://' + info.url });
       });
       hintEl.appendChild(link);
-    } else {
+    }
+    if (isOllama) {
       document.getElementById('kt').textContent = 'Ollama — URL сервера';
       document.getElementById('kl').textContent = '';
+    }
+    if (isOpenAI) {
+      document.getElementById('kt').textContent = 'OpenAI-compatible API';
+      document.getElementById('kl').textContent = 'API Key';
+      // Show URL input for OpenAI-compatible
+      var urlInput = document.getElementById('ollama-url');
+      urlInput.value = 'https://api.openai.com/v1';
+      document.getElementById('conn-status').textContent = 'Base URL для API endpoint';
     }
     checkKey();
   }
@@ -227,6 +242,10 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
     if (prov === 'ollama') {
       var url = document.getElementById('ollama-url').value.trim();
       ok = url.indexOf('http') === 0 && selectedModel.length > 0;
+    } else if (prov === 'openai-compatible') {
+      var url = document.getElementById('ollama-url').value.trim();
+      var v = document.getElementById('ki').value.trim();
+      ok = url.indexOf('http') === 0 && v.length > 0;
     } else {
       var v = document.getElementById('ki').value.trim();
       ok = v.length > 8;
@@ -281,6 +300,11 @@ button.go{background:#2ea043;color:#fff;font-size:14px;padding:9px 22px}
     if (prov === 'ollama') {
       var url = document.getElementById('ollama-url').value.trim();
       vs.postMessage({ type: 'wizard:setOllamaUrl', url: url });
+    } else if (prov === 'openai-compatible') {
+      var url = document.getElementById('ollama-url').value.trim();
+      var v = document.getElementById('ki').value.trim();
+      vs.postMessage({ type: 'wizard:setOpenAiBaseUrl', url: url });
+      vs.postMessage({ type: 'wizard:setApiKey', provider: prov, key: v });
     } else {
       var v = document.getElementById('ki').value.trim();
       vs.postMessage({ type: 'wizard:setApiKey', provider: prov, key: v });
